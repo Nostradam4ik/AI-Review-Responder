@@ -2,19 +2,19 @@ export default function LoginPage() {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white rounded-2xl shadow-lg p-10 w-full max-w-md flex flex-col items-center gap-6">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-zinc-950">
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-lg dark:shadow-zinc-900/50 border border-transparent dark:border-zinc-800 p-10 w-full max-w-md flex flex-col items-center gap-6">
         <div className="flex flex-col items-center gap-2">
           <span className="text-4xl">⭐</span>
-          <h1 className="text-2xl font-bold text-gray-900">AI Review Responder</h1>
-          <p className="text-gray-500 text-sm text-center">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100">AI Review Responder</h1>
+          <p className="text-gray-500 dark:text-zinc-400 text-sm text-center">
             Respond to your Google Business reviews automatically with AI
           </p>
         </div>
 
         <a
           href={`${apiUrl}/auth/login`}
-          className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 rounded-lg px-6 py-3 text-gray-700 font-medium shadow-sm hover:shadow-md hover:bg-gray-50 transition"
+          className="w-full flex items-center justify-center gap-3 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg px-6 py-3 text-gray-700 dark:text-zinc-200 font-medium shadow-sm hover:shadow-md hover:bg-gray-50 dark:hover:bg-zinc-700 transition"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -25,7 +25,7 @@ export default function LoginPage() {
           Continue with Google
         </a>
 
-        <p className="text-xs text-gray-400 text-center">
+        <p className="text-xs text-gray-400 dark:text-zinc-500 text-center">
           By signing in, you grant access to your Google Business Profile to manage review responses.
         </p>
       </div>

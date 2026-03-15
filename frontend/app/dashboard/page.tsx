@@ -25,7 +25,6 @@ export default function DashboardPage() {
   }, []);
 
   const pending = reviewData?.reviews.filter((r) => r.status === "pending").length ?? 0;
-  const responded = reviewData?.reviews.filter((r) => r.status === "responded").length ?? 0;
   const total = reviewData?.total ?? 0;
   const avgRating =
     reviewData && reviewData.reviews.length > 0
@@ -33,14 +32,14 @@ export default function DashboardPage() {
       : 0;
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64 text-gray-400">Loading...</div>;
+    return <div className="flex items-center justify-center h-64 text-gray-400 dark:text-zinc-500">Loading...</div>;
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-500 text-sm mt-1">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100">Dashboard</h1>
+        <p className="text-gray-500 dark:text-zinc-400 text-sm mt-1">
           {locations.length} location{locations.length !== 1 ? "s" : ""} connected
         </p>
       </div>
@@ -52,13 +51,13 @@ export default function DashboardPage() {
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold text-gray-800 mb-3">Recent Reviews</h2>
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-zinc-200 mb-3">Recent Reviews</h2>
         {reviewData?.reviews.length === 0 ? (
-          <div className="text-center py-12 text-gray-400">
+          <div className="text-center py-12 text-gray-400 dark:text-zinc-500">
             <p>No reviews yet.</p>
             <button
               onClick={() => reviewsApi.sync()}
-              className="mt-3 text-sm text-blue-600 hover:underline"
+              className="mt-3 text-sm text-blue-600 dark:text-blue-400 hover:underline"
             >
               Sync from Google
             </button>

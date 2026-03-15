@@ -38,7 +38,6 @@ export default function ResponseEditor({ review, initialResponse, onPublished }:
     setPublishing(true);
     setError("");
     try {
-      // Save edits first if text changed
       if (text !== response.ai_draft) {
         await responsesApi.edit(response.id, text);
       }
@@ -52,13 +51,13 @@ export default function ResponseEditor({ review, initialResponse, onPublished }:
   };
 
   return (
-    <div className="space-y-3 pt-3 border-t border-gray-100">
+    <div className="space-y-3 pt-3 border-t border-gray-100 dark:border-zinc-800">
       <div className="flex items-center justify-between">
         <ToneSelector value={tone} onChange={setTone} disabled={generating} />
         <button
           onClick={handleGenerate}
           disabled={generating}
-          className="px-3 py-1.5 text-xs font-medium bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition"
+          className="px-3 py-1.5 text-xs font-medium bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 disabled:opacity-50 transition"
         >
           {generating ? "Generating..." : response ? "Regenerate" : "Generate AI Response"}
         </button>
@@ -70,11 +69,11 @@ export default function ResponseEditor({ review, initialResponse, onPublished }:
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={4}
-            className="w-full text-sm border border-gray-200 rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-300"
+            className="w-full text-sm border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-700"
             placeholder="AI generated response..."
           />
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-gray-400 dark:text-zinc-500">
               {text.length} chars · via {response.model_used}
               {response.published_at && " · Published ✓"}
             </span>

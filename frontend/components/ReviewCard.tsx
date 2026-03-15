@@ -13,7 +13,7 @@ function StarRating({ rating }: { rating: number }) {
   return (
     <div className="flex gap-0.5">
       {[1, 2, 3, 4, 5].map((star) => (
-        <span key={star} className={star <= rating ? "text-yellow-400" : "text-gray-200"}>
+        <span key={star} className={star <= rating ? "text-yellow-400" : "text-gray-200 dark:text-zinc-700"}>
           ★
         </span>
       ))}
@@ -22,9 +22,9 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 const STATUS_BADGE: Record<string, string> = {
-  pending: "bg-orange-100 text-orange-700",
-  responded: "bg-green-100 text-green-700",
-  ignored: "bg-gray-100 text-gray-500",
+  pending: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400",
+  responded: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400",
+  ignored: "bg-gray-100 text-gray-500 dark:bg-zinc-800 dark:text-zinc-400",
 };
 
 export default function ReviewCard({ review, onStatusChange }: ReviewCardProps) {
@@ -35,7 +35,7 @@ export default function ReviewCard({ review, onStatusChange }: ReviewCardProps) 
     : null;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-3">
+    <div className="bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-800 p-5 space-y-3">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3">
@@ -43,10 +43,10 @@ export default function ReviewCard({ review, onStatusChange }: ReviewCardProps) 
             {review.author_name?.[0]?.toUpperCase() ?? "?"}
           </div>
           <div>
-            <p className="font-medium text-gray-900 text-sm">{review.author_name ?? "Anonymous"}</p>
+            <p className="font-medium text-gray-900 dark:text-zinc-100 text-sm">{review.author_name ?? "Anonymous"}</p>
             <div className="flex items-center gap-2 mt-0.5">
               <StarRating rating={review.rating} />
-              {date && <span className="text-xs text-gray-400">{date}</span>}
+              {date && <span className="text-xs text-gray-400 dark:text-zinc-500">{date}</span>}
             </div>
           </div>
         </div>
@@ -57,7 +57,7 @@ export default function ReviewCard({ review, onStatusChange }: ReviewCardProps) 
 
       {/* Comment */}
       {review.comment && (
-        <p className="text-sm text-gray-700 leading-relaxed">{review.comment}</p>
+        <p className="text-sm text-gray-700 dark:text-zinc-300 leading-relaxed">{review.comment}</p>
       )}
 
       {/* Actions */}
@@ -65,7 +65,7 @@ export default function ReviewCard({ review, onStatusChange }: ReviewCardProps) 
         {review.status === "pending" && (
           <button
             onClick={() => setExpanded((v) => !v)}
-            className="text-xs text-blue-600 font-medium hover:underline"
+            className="text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline"
           >
             {expanded ? "Hide response" : "Respond with AI"}
           </button>

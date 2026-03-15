@@ -51,8 +51,8 @@ export default function ReviewsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Reviews</h1>
-          <p className="text-gray-500 text-sm mt-1">{total} total</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100">Reviews</h1>
+          <p className="text-gray-500 dark:text-zinc-400 text-sm mt-1">{total} total</p>
         </div>
         <button
           onClick={handleSync}
@@ -63,7 +63,6 @@ export default function ReviewsPage() {
         </button>
       </div>
 
-      {/* Filters */}
       <div className="flex gap-2">
         {STATUS_FILTERS.map((f) => (
           <button
@@ -72,7 +71,7 @@ export default function ReviewsPage() {
             className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
               status === f.value
                 ? "bg-blue-600 text-white"
-                : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
+                : "bg-white dark:bg-zinc-900 text-gray-600 dark:text-zinc-400 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800"
             }`}
           >
             {f.label}
@@ -81,9 +80,9 @@ export default function ReviewsPage() {
       </div>
 
       {loading ? (
-        <div className="text-center py-12 text-gray-400">Loading...</div>
+        <div className="text-center py-12 text-gray-400 dark:text-zinc-500">Loading...</div>
       ) : reviews.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">No reviews found.</div>
+        <div className="text-center py-12 text-gray-400 dark:text-zinc-500">No reviews found.</div>
       ) : (
         <div className="space-y-4">
           {reviews.map((review) => (
