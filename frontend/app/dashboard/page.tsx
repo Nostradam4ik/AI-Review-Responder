@@ -5,8 +5,11 @@ import { reviewsApi, locationsApi } from "@/lib/api";
 import type { ReviewList, Location } from "@/types";
 import StatsWidget from "@/components/StatsWidget";
 import ReviewCard from "@/components/ReviewCard";
+import { useTranslations } from "next-intl";
 
 export default function DashboardPage() {
+  const t = useTranslations("dashboard");
+  const tR = useTranslations("reviews");
   const [reviewData, setReviewData] = useState<ReviewList | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,34 +35,34 @@ export default function DashboardPage() {
       : 0;
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64 text-gray-400 dark:text-zinc-500">Loading...</div>;
+    return <div className="flex items-center justify-center h-64 text-gray-400 dark:text-zinc-500">{tR("loading")}</div>;
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100">Dashboard</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100">{t("title")}</h1>
         <p className="text-gray-500 dark:text-zinc-400 text-sm mt-1">
-          {locations.length} location{locations.length !== 1 ? "s" : ""} connected
+          {t("locationsConnected", { count: locations.length })}
         </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatsWidget label="Total Reviews" value={total} />
-        <StatsWidget label="Pending" value={pending} highlight />
-        <StatsWidget label="Avg Rating" value={avgRating > 0 ? `${avgRating.toFixed(1)} ⭐` : "—"} />
+        <StatsWidget label={t("totalReviews")} value={total} />
+        <StatsWidget label={t("pending")} value={pending} highlight />
+        <StatsWidget label={t("avgRating")} value={avgRating > 0 ? `${avgRating.toFixed(1)} ⭐` : "—"} />
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-zinc-200 mb-3">Recent Reviews</h2>
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-zinc-200 mb-3">{t("recentReviews")}</h2>
         {reviewData?.reviews.length === 0 ? (
           <div className="text-center py-12 text-gray-400 dark:text-zinc-500">
-            <p>No reviews yet.</p>
+            <p>{t("noReviews")}</p>
             <button
               onClick={() => reviewsApi.sync()}
               className="mt-3 text-sm text-blue-600 dark:text-blue-400 hover:underline"
             >
-              Sync from Google
+              {t("syncFromGoogle")}
             </button>
           </div>
         ) : (

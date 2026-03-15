@@ -1,4 +1,9 @@
+"use client";
+
 import type { Tone } from "@/types";
+import { useTranslations } from "next-intl";
+
+const TONES: Tone[] = ["formal", "warm", "casual"];
 
 interface ToneSelectorProps {
   value: Tone;
@@ -6,28 +11,23 @@ interface ToneSelectorProps {
   disabled?: boolean;
 }
 
-const TONES: { value: Tone; label: string; description: string }[] = [
-  { value: "formal", label: "Formal", description: "Professional & polished" },
-  { value: "warm", label: "Warm", description: "Friendly & welcoming" },
-  { value: "casual", label: "Casual", description: "Relaxed & approachable" },
-];
-
 export default function ToneSelector({ value, onChange, disabled }: ToneSelectorProps) {
+  const t = useTranslations("reviews");
+
   return (
     <div className="flex gap-2">
       {TONES.map((tone) => (
         <button
-          key={tone.value}
-          onClick={() => onChange(tone.value)}
+          key={tone}
+          onClick={() => onChange(tone)}
           disabled={disabled}
-          title={tone.description}
           className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-            value === tone.value
+            value === tone
               ? "bg-blue-600 text-white border-blue-600"
-              : "bg-white text-gray-600 border-gray-200 hover:border-blue-400 hover:text-blue-600"
+              : "bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 border-gray-200 dark:border-zinc-700 hover:border-blue-400 hover:text-blue-600"
           } disabled:opacity-50`}
         >
-          {tone.label}
+          {t(tone)}
         </button>
       ))}
     </div>

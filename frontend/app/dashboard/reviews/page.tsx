@@ -4,20 +4,22 @@ import { useEffect, useState, useCallback } from "react";
 import { reviewsApi } from "@/lib/api";
 import type { Review, ReviewStatus } from "@/types";
 import ReviewCard from "@/components/ReviewCard";
-
-const STATUS_FILTERS: { label: string; value: ReviewStatus | "all" }[] = [
-  { label: "All", value: "all" },
-  { label: "Pending", value: "pending" },
-  { label: "Responded", value: "responded" },
-  { label: "Ignored", value: "ignored" },
-];
+import { useTranslations } from "next-intl";
 
 export default function ReviewsPage() {
+  const t = useTranslations("reviews");
   const [reviews, setReviews] = useState<Review[]>([]);
   const [total, setTotal] = useState(0);
   const [status, setStatus] = useState<ReviewStatus | "all">("all");
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+
+  const STATUS_FILTERS: { label: string; value: ReviewStatus | "all" }[] = [
+    { label: t("all"), value: "all" },
+    { label: t("pending"), value: "pending" },
+    { label: t("responded"), value: "responded" },
+    { label: t("ignored"), value: "ignored" },
+  ];
 
   const fetchReviews = useCallback(async () => {
     setLoading(true);
@@ -51,15 +53,15 @@ export default function ReviewsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100">Reviews</h1>
-          <p className="text-gray-500 dark:text-zinc-400 text-sm mt-1">{total} total</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100">{t("title")}</h1>
+          <p className="text-gray-500 dark:text-zinc-400 text-sm mt-1">{t("total", { count: total })}</p>
         </div>
         <button
           onClick={handleSync}
           disabled={syncing}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition"
         >
-          {syncing ? "Syncing..." : "Sync from Google"}
+          {syncing ? t("syncing") : t("syncButton")}
         </button>
       </div>
 
@@ -80,9 +82,9 @@ export default function ReviewsPage() {
       </div>
 
       {loading ? (
-        <div className="text-center py-12 text-gray-400 dark:text-zinc-500">Loading...</div>
+        <div className="text-center py-12 text-gray-400 dark:text-zinc-500">{t("loading")}</div>
       ) : reviews.length === 0 ? (
-        <div className="text-center py-12 text-gray-400 dark:text-zinc-500">No reviews found.</div>
+        <div className="text-center py-12 text-gray-400 dark:text-zinc-500">{t("noReviews")}</div>
       ) : (
         <div className="space-y-4">
           {reviews.map((review) => (

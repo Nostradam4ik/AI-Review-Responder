@@ -1,0 +1,52 @@
+{
+  "nav": {
+    "dashboard": "Panel",
+    "reviews": "Reseñas",
+    "settings": "Configuración",
+    "signOut": "Cerrar sesión"
+  },
+  "dashboard": {
+    "title": "Panel",
+    "locationsConnected": "{count, plural, one {# ubicación conectada} other {# ubicaciones conectadas}}",
+    "totalReviews": "Total de reseñas",
+    "pending": "Pendientes",
+    "avgRating": "Valoración media",
+    "recentReviews": "Reseñas recientes",
+    "noReviews": "No hay reseñas todavía.",
+    "syncFromGoogle": "Sincronizar desde Google"
+  },
+  "reviews": {
+    "title": "Reseñas",
+    "total": "{count} en total",
+    "syncButton": "Sincronizar desde Google",
+    "syncing": "Sincronizando...",
+    "all": "Todas",
+    "pending": "Pendientes",
+    "responded": "Respondidas",
+    "ignored": "Ignoradas",
+    "noReviews": "No se encontraron reseñas.",
+    "loading": "Cargando...",
+    "respondWithAI": "Responder con IA",
+    "hideResponse": "Ocultar respuesta",
+    "regenerate": "Regenerar",
+    "generateAIResponse": "Generar respuesta IA",
+    "generating": "Generando...",
+    "publishToGoogle": "Publicar en Google",
+    "publishing": "Publicando...",
+    "published": "Publicado ✓",
+    "formal": "Formal",
+    "warm": "Cálido",
+    "casual": "Casual",
+    "failedGenerate": "Error al generar la respuesta.",
+    "failedPublish": "Error al publicar la respuesta."
+  },
+  "settings": {
+    "title": "Configuración",
+    "locations": "Ubicaciones de Google Business",
+    "syncLocations": "Sincronizar ubicaciones",
+    "syncing": "Sincronizando...",
+    "noLocations": "No se encontraron ubicaciones. Haga clic en Sincronizar para importar desde Google.",
+    "syncSuccess": "{synced} ubicación(es) sincronizada(s), {new} nueva(s).",
+    "syncFailed": "Error al sincronizar las ubicaciones."
+  }
+}

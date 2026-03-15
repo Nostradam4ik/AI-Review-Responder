@@ -1,0 +1,52 @@
+{
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "reviews": "Avis",
+    "settings": "Paramètres",
+    "signOut": "Déconnexion"
+  },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "locationsConnected": "{count, plural, one {# établissement connecté} other {# établissements connectés}}",
+    "totalReviews": "Total des avis",
+    "pending": "En attente",
+    "avgRating": "Note moyenne",
+    "recentReviews": "Avis récents",
+    "noReviews": "Aucun avis pour l'instant.",
+    "syncFromGoogle": "Synchroniser depuis Google"
+  },
+  "reviews": {
+    "title": "Avis",
+    "total": "{count} au total",
+    "syncButton": "Synchroniser depuis Google",
+    "syncing": "Synchronisation...",
+    "all": "Tous",
+    "pending": "En attente",
+    "responded": "Répondu",
+    "ignored": "Ignoré",
+    "noReviews": "Aucun avis trouvé.",
+    "loading": "Chargement...",
+    "respondWithAI": "Répondre avec l'IA",
+    "hideResponse": "Masquer la réponse",
+    "regenerate": "Régénérer",
+    "generateAIResponse": "Générer une réponse IA",
+    "generating": "Génération...",
+    "publishToGoogle": "Publier sur Google",
+    "publishing": "Publication...",
+    "published": "Publié ✓",
+    "formal": "Formel",
+    "warm": "Chaleureux",
+    "casual": "Décontracté",
+    "failedGenerate": "Échec de la génération de réponse.",
+    "failedPublish": "Échec de la publication de la réponse."
+  },
+  "settings": {
+    "title": "Paramètres",
+    "locations": "Établissements Google Business",
+    "syncLocations": "Synchroniser les établissements",
+    "syncing": "Synchronisation...",
+    "noLocations": "Aucun établissement trouvé. Cliquez sur Synchroniser pour importer depuis Google.",
+    "syncSuccess": "{synced} établissement(s) synchronisé(s), {new} nouveau(x).",
+    "syncFailed": "Échec de la synchronisation."
+  }
+}

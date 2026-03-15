@@ -4,14 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/lib/auth";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useTranslations } from "next-intl";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const t = useTranslations("nav");
 
   const navItems = [
-    { href: "/dashboard", label: "Dashboard" },
-    { href: "/dashboard/reviews", label: "Reviews" },
-    { href: "/dashboard/settings", label: "Settings" },
+    { href: "/dashboard", label: t("dashboard") },
+    { href: "/dashboard/reviews", label: t("reviews") },
+    { href: "/dashboard/settings", label: t("settings") },
   ];
 
   return (
@@ -35,13 +38,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             ))}
           </nav>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <LanguageSwitcher />
           <ThemeToggle />
           <button
             onClick={logout}
             className="text-sm text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition-colors"
           >
-            Sign out
+            {t("signOut")}
           </button>
         </div>
       </header>

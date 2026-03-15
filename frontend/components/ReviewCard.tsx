@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Review } from "@/types";
 import ResponseEditor from "./ResponseEditor";
+import { useTranslations } from "next-intl";
 
 interface ReviewCardProps {
   review: Review;
@@ -29,6 +30,7 @@ const STATUS_BADGE: Record<string, string> = {
 
 export default function ReviewCard({ review, onStatusChange }: ReviewCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const t = useTranslations("reviews");
 
   const date = review.review_date
     ? new Date(review.review_date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
@@ -36,7 +38,6 @@ export default function ReviewCard({ review, onStatusChange }: ReviewCardProps) 
 
   return (
     <div className="bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-800 p-5 space-y-3">
-      {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3">
           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
@@ -51,28 +52,25 @@ export default function ReviewCard({ review, onStatusChange }: ReviewCardProps) 
           </div>
         </div>
         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[review.status]}`}>
-          {review.status}
+          {t(review.status as "pending" | "responded" | "ignored")}
         </span>
       </div>
 
-      {/* Comment */}
       {review.comment && (
         <p className="text-sm text-gray-700 dark:text-zinc-300 leading-relaxed">{review.comment}</p>
       )}
 
-      {/* Actions */}
       <div className="flex gap-2">
         {review.status === "pending" && (
           <button
             onClick={() => setExpanded((v) => !v)}
             className="text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline"
           >
-            {expanded ? "Hide response" : "Respond with AI"}
+            {expanded ? t("hideResponse") : t("respondWithAI")}
           </button>
         )}
       </div>
 
-      {/* Response Editor */}
       {expanded && (
         <ResponseEditor
           review={review}

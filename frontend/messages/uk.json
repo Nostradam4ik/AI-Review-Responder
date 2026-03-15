@@ -1,0 +1,52 @@
+{
+  "nav": {
+    "dashboard": "Дашборд",
+    "reviews": "Відгуки",
+    "settings": "Налаштування",
+    "signOut": "Вийти"
+  },
+  "dashboard": {
+    "title": "Дашборд",
+    "locationsConnected": "{count, plural, one {# локація підключена} few {# локації підключені} many {# локацій підключено} other {# локацій підключено}}",
+    "totalReviews": "Всього відгуків",
+    "pending": "Очікують",
+    "avgRating": "Серед. рейтинг",
+    "recentReviews": "Останні відгуки",
+    "noReviews": "Відгуків ще немає.",
+    "syncFromGoogle": "Синхронізувати з Google"
+  },
+  "reviews": {
+    "title": "Відгуки",
+    "total": "Всього: {count}",
+    "syncButton": "Синхронізувати з Google",
+    "syncing": "Синхронізація...",
+    "all": "Всі",
+    "pending": "Очікують",
+    "responded": "Відповіли",
+    "ignored": "Ігноровані",
+    "noReviews": "Відгуків не знайдено.",
+    "loading": "Завантаження...",
+    "respondWithAI": "Відповісти з ШІ",
+    "hideResponse": "Приховати відповідь",
+    "regenerate": "Перегенерувати",
+    "generateAIResponse": "Згенерувати відповідь ШІ",
+    "generating": "Генерація...",
+    "publishToGoogle": "Опублікувати в Google",
+    "publishing": "Публікація...",
+    "published": "Опубліковано ✓",
+    "formal": "Офіційний",
+    "warm": "Теплий",
+    "casual": "Невимушений",
+    "failedGenerate": "Помилка генерації відповіді.",
+    "failedPublish": "Помилка публікації відповіді."
+  },
+  "settings": {
+    "title": "Налаштування",
+    "locations": "Локації Google Business",
+    "syncLocations": "Синхронізувати локації",
+    "syncing": "Синхронізація...",
+    "noLocations": "Локацій не знайдено. Натисніть «Синхронізувати», щоб отримати з Google.",
+    "syncSuccess": "Синхронізовано {synced} локацій, {new} нових.",
+    "syncFailed": "Помилка синхронізації локацій."
+  }
+}

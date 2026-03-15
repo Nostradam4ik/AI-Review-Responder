@@ -1,0 +1,52 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "reviews": "Reviews",
+    "settings": "Settings",
+    "signOut": "Sign out"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "locationsConnected": "{count, plural, one {# location connected} other {# locations connected}}",
+    "totalReviews": "Total Reviews",
+    "pending": "Pending",
+    "avgRating": "Avg Rating",
+    "recentReviews": "Recent Reviews",
+    "noReviews": "No reviews yet.",
+    "syncFromGoogle": "Sync from Google"
+  },
+  "reviews": {
+    "title": "Reviews",
+    "total": "{count} total",
+    "syncButton": "Sync from Google",
+    "syncing": "Syncing...",
+    "all": "All",
+    "pending": "Pending",
+    "responded": "Responded",
+    "ignored": "Ignored",
+    "noReviews": "No reviews found.",
+    "loading": "Loading...",
+    "respondWithAI": "Respond with AI",
+    "hideResponse": "Hide response",
+    "regenerate": "Regenerate",
+    "generateAIResponse": "Generate AI Response",
+    "generating": "Generating...",
+    "publishToGoogle": "Publish to Google",
+    "publishing": "Publishing...",
+    "published": "Published ✓",
+    "formal": "Formal",
+    "warm": "Warm",
+    "casual": "Casual",
+    "failedGenerate": "Failed to generate response.",
+    "failedPublish": "Failed to publish response."
+  },
+  "settings": {
+    "title": "Settings",
+    "locations": "Google Business Locations",
+    "syncLocations": "Sync Locations",
+    "syncing": "Syncing...",
+    "noLocations": "No locations found. Click Sync to fetch from Google.",
+    "syncSuccess": "Synced {synced} location(s), {new} new.",
+    "syncFailed": "Failed to sync locations."
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "reviews": "Bewertungen",
+    "settings": "Einstellungen",
+    "signOut": "Abmelden"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "locationsConnected": "{count, plural, one {# Standort verbunden} other {# Standorte verbunden}}",
+    "totalReviews": "Bewertungen gesamt",
+    "pending": "Ausstehend",
+    "avgRating": "Ø Bewertung",
+    "recentReviews": "Aktuelle Bewertungen",
+    "noReviews": "Noch keine Bewertungen.",
+    "syncFromGoogle": "Von Google synchronisieren"
+  },
+  "reviews": {
+    "title": "Bewertungen",
+    "total": "{count} gesamt",
+    "syncButton": "Von Google synchronisieren",
+    "syncing": "Synchronisierung...",
+    "all": "Alle",
+    "pending": "Ausstehend",
+    "responded": "Beantwortet",
+    "ignored": "Ignoriert",
+    "noReviews": "Keine Bewertungen gefunden.",
+    "loading": "Lädt...",
+    "respondWithAI": "Mit KI antworten",
+    "hideResponse": "Antwort ausblenden",
+    "regenerate": "Neu generieren",
+    "generateAIResponse": "KI-Antwort generieren",
+    "generating": "Generierung...",
+    "publishToGoogle": "Bei Google veröffentlichen",
+    "publishing": "Veröffentlichung...",
+    "published": "Veröffentlicht ✓",
+    "formal": "Formell",
+    "warm": "Herzlich",
+    "casual": "Locker",
+    "failedGenerate": "Antwort konnte nicht generiert werden.",
+    "failedPublish": "Veröffentlichung fehlgeschlagen."
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "locations": "Google Business Standorte",
+    "syncLocations": "Standorte synchronisieren",
+    "syncing": "Synchronisierung...",
+    "noLocations": "Keine Standorte gefunden. Klicken Sie auf Synchronisieren, um von Google zu importieren.",
+    "syncSuccess": "{synced} Standort(e) synchronisiert, {new} neu.",
+    "syncFailed": "Synchronisierung fehlgeschlagen."
+  }
+}

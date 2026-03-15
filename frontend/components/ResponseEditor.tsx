@@ -4,6 +4,7 @@ import { useState } from "react";
 import { responsesApi } from "@/lib/api";
 import type { Review, Response, Tone } from "@/types";
 import ToneSelector from "./ToneSelector";
+import { useTranslations } from "next-intl";
 
 interface ResponseEditorProps {
   review: Review;
@@ -12,6 +13,7 @@ interface ResponseEditorProps {
 }
 
 export default function ResponseEditor({ review, initialResponse, onPublished }: ResponseEditorProps) {
+  const t = useTranslations("reviews");
   const [response, setResponse] = useState<Response | null>(initialResponse ?? null);
   const [tone, setTone] = useState<Tone>("warm");
   const [text, setText] = useState(initialResponse?.final_text ?? initialResponse?.ai_draft ?? "");
@@ -27,7 +29,7 @@ export default function ResponseEditor({ review, initialResponse, onPublished }:
       setResponse(resp);
       setText(resp.ai_draft);
     } catch {
-      setError("Failed to generate response.");
+      setError(t("failedGenerate"));
     } finally {
       setGenerating(false);
     }
@@ -44,7 +46,7 @@ export default function ResponseEditor({ review, initialResponse, onPublished }:
       await responsesApi.publish(response.id);
       onPublished?.();
     } catch {
-      setError("Failed to publish response.");
+      setError(t("failedPublish"));
     } finally {
       setPublishing(false);
     }
@@ -59,7 +61,7 @@ export default function ResponseEditor({ review, initialResponse, onPublished }:
           disabled={generating}
           className="px-3 py-1.5 text-xs font-medium bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 disabled:opacity-50 transition"
         >
-          {generating ? "Generating..." : response ? "Regenerate" : "Generate AI Response"}
+          {generating ? t("generating") : response ? t("regenerate") : t("generateAIResponse")}
         </button>
       </div>
 
@@ -75,7 +77,7 @@ export default function ResponseEditor({ review, initialResponse, onPublished }:
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-400 dark:text-zinc-500">
               {text.length} chars · via {response.model_used}
-              {response.published_at && " · Published ✓"}
+              {response.published_at && ` · ${t("published")}`}
             </span>
             {!response.published_at && (
               <button
@@ -83,7 +85,7 @@ export default function ResponseEditor({ review, initialResponse, onPublished }:
                 disabled={publishing || !text.trim()}
                 className="px-4 py-1.5 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition"
               >
-                {publishing ? "Publishing..." : "Publish to Google"}
+                {publishing ? t("publishing") : t("publishToGoogle")}
               </button>
             )}
           </div>

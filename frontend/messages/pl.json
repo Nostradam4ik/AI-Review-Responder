@@ -1,0 +1,52 @@
+{
+  "nav": {
+    "dashboard": "Panel",
+    "reviews": "Opinie",
+    "settings": "Ustawienia",
+    "signOut": "Wyloguj"
+  },
+  "dashboard": {
+    "title": "Panel",
+    "locationsConnected": "{count, plural, one {# lokalizacja połączona} few {# lokalizacje połączone} many {# lokalizacji połączonych} other {# lokalizacji połączonych}}",
+    "totalReviews": "Wszystkie opinie",
+    "pending": "Oczekujące",
+    "avgRating": "Śred. ocena",
+    "recentReviews": "Ostatnie opinie",
+    "noReviews": "Brak opinii.",
+    "syncFromGoogle": "Synchronizuj z Google"
+  },
+  "reviews": {
+    "title": "Opinie",
+    "total": "{count} łącznie",
+    "syncButton": "Synchronizuj z Google",
+    "syncing": "Synchronizacja...",
+    "all": "Wszystkie",
+    "pending": "Oczekujące",
+    "responded": "Odpowiedziano",
+    "ignored": "Zignorowane",
+    "noReviews": "Nie znaleziono opinii.",
+    "loading": "Ładowanie...",
+    "respondWithAI": "Odpowiedz z AI",
+    "hideResponse": "Ukryj odpowiedź",
+    "regenerate": "Generuj ponownie",
+    "generateAIResponse": "Generuj odpowiedź AI",
+    "generating": "Generowanie...",
+    "publishToGoogle": "Opublikuj w Google",
+    "publishing": "Publikowanie...",
+    "published": "Opublikowano ✓",
+    "formal": "Formalny",
+    "warm": "Ciepły",
+    "casual": "Swobodny",
+    "failedGenerate": "Nie udało się wygenerować odpowiedzi.",
+    "failedPublish": "Nie udało się opublikować odpowiedzi."
+  },
+  "settings": {
+    "title": "Ustawienia",
+    "locations": "Lokalizacje Google Business",
+    "syncLocations": "Synchronizuj lokalizacje",
+    "syncing": "Synchronizacja...",
+    "noLocations": "Nie znaleziono lokalizacji. Kliknij Synchronizuj, aby pobrać z Google.",
+    "syncSuccess": "Zsynchronizowano {synced} lokalizacji, {new} nowych.",
+    "syncFailed": "Synchronizacja nie powiodła się."
+  }
+}
