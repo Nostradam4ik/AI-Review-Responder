@@ -12,6 +12,19 @@ from app.services.gmb_service import GMBService
 router = APIRouter(prefix="/reviews", tags=["reviews"])
 
 
+@router.post("/seed-mock", status_code=201)
+async def seed_mock(db: AsyncSession = Depends(get_db)):
+    """Seed mock data for development/testing. Only works when DB host is localhost or postgres."""
+    from app.config import settings
+    db_url = settings.DATABASE_URL
+    if "localhost" not in db_url and "postgres" not in db_url:
+        raise HTTPException(status_code=403, detail="Only available in development")
+
+    from app.scripts.seed_mock_data import seed_mock_data
+    result = await seed_mock_data(db)
+    return result
+
+
 @router.get("/")
 async def list_reviews(
     status: str | None = Query(None, description="Filter by status: pending/responded/ignored"),

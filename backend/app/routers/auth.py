@@ -119,3 +119,19 @@ async def callback(
 async def me(db: AsyncSession = Depends(get_db)):
     """Placeholder — real version uses get_current_user dependency."""
     return {"message": "Use Authorization: Bearer <token> header"}
+
+
+@router.get("/mock-login")
+async def mock_login(db: AsyncSession = Depends(get_db)):
+    """Return a JWT for test@test.com — development only."""
+    from app.config import settings
+    if "localhost" not in settings.DATABASE_URL and "postgres" not in settings.DATABASE_URL:
+        raise HTTPException(status_code=403, detail="Only available in development")
+
+    result = await db.execute(select(User).where(User.email == "test@test.com"))
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=404, detail="Mock user not found — call POST /reviews/seed-mock first")
+
+    token = create_access_token({"sub": str(user.id)})
+    return {"access_token": token, "token_type": "bearer"}
