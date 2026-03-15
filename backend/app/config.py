@@ -12,6 +12,18 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     LLM_PROVIDER: str = "groq"
     FRONTEND_URL: str = "http://localhost:3000"
+    APP_URL: str = "http://localhost:3000"
+
+    # Stripe
+    STRIPE_SECRET_KEY: str = ""
+    STRIPE_WEBHOOK_SECRET: str = ""
+    STRIPE_PRICE_STARTER: str = ""
+    STRIPE_PRICE_PRO: str = ""
+    STRIPE_PRICE_AGENCY: str = ""
+
+    # Resend (email)
+    RESEND_API_KEY: str = ""
+    FROM_EMAIL: str = "noreply@yourapp.com"
 
     class Config:
         env_file = (".env", "../.env")

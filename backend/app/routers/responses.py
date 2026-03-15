@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user
+from app.core.usage_limit import check_usage_limit
 from app.database import get_db
 from app.models.location import Location
 from app.models.response import Response
@@ -41,10 +42,11 @@ async def generate_response(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Generate an AI draft response for a review."""
+    """Generate an AI draft response for a review (usage limit checked)."""
     await _get_review_with_auth(body.review_id, current_user, db)
-    tone = body.tone or current_user.tone_preference or "warm"
+    await check_usage_limit(current_user, "ai_generate", db)
 
+    tone = body.tone or current_user.tone_preference or "warm"
     response = await generate_and_save(body.review_id, db, tone=tone)
     return response
 
@@ -74,12 +76,14 @@ async def publish_response(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Publish the response to Google My Business."""
+    """Publish the response to Google My Business (usage limit checked)."""
     response = await db.get(Response, response_id)
     if response is None:
         raise HTTPException(status_code=404, detail="Response not found")
 
     review = await _get_review_with_auth(response.review_id, current_user, db)
+    await check_usage_limit(current_user, "ai_publish", db)
+
     location = await db.get(Location, review.location_id)
 
     if not current_user.access_token:

@@ -5,6 +5,7 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.subscription import Subscription
 from app.models.user import User
 from app.models.location import Location
 from app.models.review import Review
@@ -117,6 +118,17 @@ async def seed_mock_data(db: AsyncSession) -> dict:
         db.add(user)
         await db.flush()
         await db.refresh(user)
+
+    # Create Pro trial subscription for mock user (if not exists)
+    sub_result = await db.execute(select(Subscription).where(Subscription.user_id == user.id))
+    if sub_result.scalar_one_or_none() is None:
+        db.add(Subscription(
+            user_id=user.id,
+            plan_id="pro",
+            status="trialing",
+            trial_end=datetime.now(timezone.utc) + timedelta(days=14),
+        ))
+        await db.flush()
 
     # Check/create location
     loc_result = await db.execute(

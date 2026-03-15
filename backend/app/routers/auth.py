@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from urllib.parse import urlencode
 
 import httpx
@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.core.security import create_access_token
 from app.database import get_db
+from app.models.subscription import Subscription
 from app.models.user import User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -90,6 +91,7 @@ async def callback(
         result = await db.execute(select(User).where(User.email == email))
         user = result.scalar_one_or_none()
 
+    is_new_user = user is None
     if user is None:
         user = User(
             email=email,
@@ -105,6 +107,16 @@ async def callback(
 
     await db.flush()
     await db.refresh(user)
+
+    # Create 14-day trial subscription for new users
+    if is_new_user:
+        db.add(Subscription(
+            user_id=user.id,
+            plan_id="starter",
+            status="trialing",
+            trial_end=datetime.now(timezone.utc) + timedelta(days=14),
+        ))
+        await db.flush()
 
     # Issue our own JWT
     jwt_token = create_access_token({"sub": str(user.id)})
