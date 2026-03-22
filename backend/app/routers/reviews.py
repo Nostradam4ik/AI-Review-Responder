@@ -122,6 +122,21 @@ async def seed_demo_reviews(
     return {"created": created, "location": location.name}
 
 
+@router.post("/test-telegram")
+async def test_telegram(current_user: User = Depends(get_current_user)):
+    """Send a test Telegram notification to verify the bot is configured correctly."""
+    from app.services.notification import send_telegram
+    name = current_user.business_name or current_user.email
+    ok = await send_telegram(
+        f"✅ <b>Telegram connected!</b>\n\n"
+        f"Account: {name}\n"
+        f"Bot is working — you'll receive review alerts here."
+    )
+    if ok:
+        return {"ok": True, "message": "Telegram notification sent successfully."}
+    return {"ok": False, "message": "Failed — check TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env"}
+
+
 @router.post("/seed-mock", status_code=201)
 async def seed_mock(db: AsyncSession = Depends(get_db)):
     """Seed mock data for development/testing. Only works when DB host is localhost or postgres."""
