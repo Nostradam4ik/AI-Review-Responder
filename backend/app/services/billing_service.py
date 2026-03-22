@@ -1,12 +1,13 @@
 """
 Stripe billing service — checkout, portal, webhook handling.
+Uses stripe 7.x module-level API (stripe.api_key).
 """
 import asyncio
 from datetime import datetime, timezone
 
 import stripe
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -16,9 +17,11 @@ from app.models.usage_log import UsageLog
 from app.models.user import User
 
 
-def _stripe_client() -> stripe.StripeClient:
-    """Return a configured Stripe client (lazy, so missing key doesn't crash on import)."""
-    return stripe.StripeClient(settings.STRIPE_SECRET_KEY)
+def _init_stripe() -> None:
+    """Set stripe.api_key from settings (called lazily before each Stripe call)."""
+    stripe.api_key = settings.STRIPE_SECRET_KEY
+    if not stripe.api_key:
+        raise HTTPException(503, "Stripe not configured — set STRIPE_SECRET_KEY in .env")
 
 
 def _price_id_for_plan(plan_id: str) -> str:
@@ -35,59 +38,55 @@ def _price_id_for_plan(plan_id: str) -> str:
 
 async def create_checkout_session(user: User, plan_id: str, db: AsyncSession) -> str:
     """Create Stripe Checkout Session and return the URL."""
-    # Validate plan exists
+    _init_stripe()
+
     plan_result = await db.execute(select(Plan).where(Plan.id == plan_id))
     if plan_result.scalar_one_or_none() is None:
         raise HTTPException(400, "Invalid plan_id")
 
     price_id = _price_id_for_plan(plan_id)
 
-    # Get or create Stripe customer ID
     sub_result = await db.execute(select(Subscription).where(Subscription.user_id == user.id))
     sub = sub_result.scalar_one_or_none()
     customer_id = sub.stripe_customer_id if sub else None
 
-    client = _stripe_client()
-
     if not customer_id:
         customer = await asyncio.to_thread(
-            client.customers.create,
-            params={"email": user.email, "metadata": {"user_id": str(user.id)}},
+            stripe.Customer.create,
+            email=user.email,
+            metadata={"user_id": str(user.id)},
         )
-        customer_id = customer.id
+        customer_id = customer["id"]
 
     session = await asyncio.to_thread(
-        client.checkout.sessions.create,
-        params={
-            "customer": customer_id,
-            "mode": "subscription",
-            "payment_method_types": ["card"],
-            "line_items": [{"price": price_id, "quantity": 1}],
-            "success_url": f"{settings.APP_URL}/dashboard/billing?success=1",
-            "cancel_url": f"{settings.APP_URL}/dashboard/billing?cancelled=1",
-            "metadata": {"user_id": str(user.id), "plan_id": plan_id},
-        },
+        stripe.checkout.Session.create,
+        customer=customer_id,
+        mode="subscription",
+        payment_method_types=["card"],
+        line_items=[{"price": price_id, "quantity": 1}],
+        success_url=f"{settings.APP_URL}/dashboard/billing?success=1",
+        cancel_url=f"{settings.APP_URL}/dashboard/billing?cancelled=1",
+        metadata={"user_id": str(user.id), "plan_id": plan_id},
     )
-    return session.url
+    return session["url"]
 
 
 async def create_portal_session(user: User, db: AsyncSession) -> str:
     """Create Stripe Customer Portal session and return the URL."""
+    _init_stripe()
+
     sub_result = await db.execute(select(Subscription).where(Subscription.user_id == user.id))
     sub = sub_result.scalar_one_or_none()
 
     if not sub or not sub.stripe_customer_id:
         raise HTTPException(400, "No Stripe billing account found. Please subscribe first.")
 
-    client = _stripe_client()
     session = await asyncio.to_thread(
-        client.billing_portal.sessions.create,
-        params={
-            "customer": sub.stripe_customer_id,
-            "return_url": f"{settings.APP_URL}/dashboard/billing",
-        },
+        stripe.billing_portal.Session.create,
+        customer=sub.stripe_customer_id,
+        return_url=f"{settings.APP_URL}/dashboard/billing",
     )
-    return session.url
+    return session["url"]
 
 
 async def get_billing_status(user: User, db: AsyncSession) -> dict:
@@ -106,7 +105,6 @@ async def get_billing_status(user: User, db: AsyncSession) -> dict:
     plan = plan_result.scalar_one_or_none()
 
     period = datetime.now(timezone.utc).strftime("%Y-%m")
-    from sqlalchemy import func
     usage_result = await db.execute(
         select(func.count()).where(
             UsageLog.user_id == user.id,
@@ -152,6 +150,8 @@ async def handle_webhook(payload: bytes, sig_header: str, db: AsyncSession) -> N
     event_type = event["type"]
     data = event["data"]["object"]
 
+    stripe.api_key = settings.STRIPE_SECRET_KEY
+
     if event_type == "checkout.session.completed":
         user_id = data.get("metadata", {}).get("user_id")
         plan_id = data.get("metadata", {}).get("plan_id", "starter")
@@ -161,17 +161,12 @@ async def handle_webhook(payload: bytes, sig_header: str, db: AsyncSession) -> N
         if not (user_id and stripe_sub_id):
             return
 
-        # Fetch period from Stripe subscription
-        client = _stripe_client()
-        stripe_sub = await asyncio.to_thread(client.subscriptions.retrieve, stripe_sub_id)
+        stripe_sub = await asyncio.to_thread(stripe.Subscription.retrieve, stripe_sub_id)
+        period_start = datetime.fromtimestamp(stripe_sub["current_period_start"], tz=timezone.utc)
+        period_end = datetime.fromtimestamp(stripe_sub["current_period_end"], tz=timezone.utc)
 
-        result = await db.execute(
-            select(Subscription).where(Subscription.user_id == user_id)
-        )
+        result = await db.execute(select(Subscription).where(Subscription.user_id == user_id))
         sub = result.scalar_one_or_none()
-
-        period_start = datetime.fromtimestamp(stripe_sub.current_period_start, tz=timezone.utc)
-        period_end = datetime.fromtimestamp(stripe_sub.current_period_end, tz=timezone.utc)
 
         if sub:
             sub.plan_id = plan_id
@@ -202,11 +197,10 @@ async def handle_webhook(payload: bytes, sig_header: str, db: AsyncSession) -> N
         )
         sub = result.scalar_one_or_none()
         if sub:
-            client = _stripe_client()
-            stripe_sub = await asyncio.to_thread(client.subscriptions.retrieve, stripe_sub_id)
+            stripe_sub = await asyncio.to_thread(stripe.Subscription.retrieve, stripe_sub_id)
             sub.status = "active"
-            sub.current_period_start = datetime.fromtimestamp(stripe_sub.current_period_start, tz=timezone.utc)
-            sub.current_period_end = datetime.fromtimestamp(stripe_sub.current_period_end, tz=timezone.utc)
+            sub.current_period_start = datetime.fromtimestamp(stripe_sub["current_period_start"], tz=timezone.utc)
+            sub.current_period_end = datetime.fromtimestamp(stripe_sub["current_period_end"], tz=timezone.utc)
             await db.commit()
 
     elif event_type == "invoice.payment_failed":

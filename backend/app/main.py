@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import engine, Base
-from app.routers import auth, locations, reviews, responses
+from app.routers import auth, locations, reviews, responses, users
 from app.routers import billing
 from app.tasks.scheduler import start_scheduler, stop_scheduler
 
@@ -43,6 +43,7 @@ app.add_middleware(
 
 
 app.include_router(auth.router)
+app.include_router(users.router)
 app.include_router(locations.router)
 app.include_router(reviews.router)
 app.include_router(responses.router)

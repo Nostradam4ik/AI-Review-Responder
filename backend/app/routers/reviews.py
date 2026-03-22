@@ -12,6 +12,116 @@ from app.services.gmb_service import GMBService
 router = APIRouter(prefix="/reviews", tags=["reviews"])
 
 
+DEMO_REVIEWS = [
+    {
+        "gmb_review_id": "demo_r001",
+        "author_name": "Marie Dupont",
+        "rating": 5,
+        "comment": "Excellent restaurant ! La cuisine est vraiment exceptionnelle, les plats sont savoureux et la présentation est magnifique. Le service est impeccable et l'atmosphère très agréable. Je recommande vivement !",
+        "language": "fr",
+        "days_ago": 2,
+    },
+    {
+        "gmb_review_id": "demo_r002",
+        "author_name": "Jean-Luc Moreau",
+        "rating": 4,
+        "comment": "Très bon restaurant dans l'ensemble. La nourriture était délicieuse et le service attentif. Seul bémol : l'attente un peu longue entre les plats. Mais on y reviendra sans hésiter.",
+        "language": "fr",
+        "days_ago": 5,
+    },
+    {
+        "gmb_review_id": "demo_r003",
+        "author_name": "Sophie Bernard",
+        "rating": 3,
+        "comment": "Expérience mitigée. L'entrée était excellente mais le plat principal était trop salé. Le cadre est sympa et le personnel souriant. Peut mieux faire pour le prix demandé.",
+        "language": "fr",
+        "days_ago": 9,
+    },
+    {
+        "gmb_review_id": "demo_r004",
+        "author_name": "Robert Girard",
+        "rating": 2,
+        "comment": "Déçu par cette visite. Nous avons attendu 45 minutes pour être servis. Le steak était trop cuit malgré notre demande saignant. La facture ne correspondait pas à la qualité du repas.",
+        "language": "fr",
+        "days_ago": 14,
+    },
+    {
+        "gmb_review_id": "demo_r005",
+        "author_name": "Isabelle Petit",
+        "rating": 5,
+        "comment": "Coup de cœur pour ce bistrot ! Ambiance authentique parisienne, cuisine traditionnelle revisitée avec talent. Le foie gras et le magret de canard étaient divins. Prix très raisonnables.",
+        "language": "fr",
+        "days_ago": 18,
+    },
+    {
+        "gmb_review_id": "demo_r006",
+        "author_name": "James Wilson",
+        "rating": 1,
+        "comment": "Terrible experience. Staff was rude and the food was cold. Waited over an hour for our order. Will not be returning.",
+        "language": "en",
+        "days_ago": 22,
+    },
+]
+
+
+@router.post("/seed-demo", status_code=201)
+async def seed_demo_reviews(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Seed demo reviews for the current user to explore the product."""
+    from datetime import datetime, timezone, timedelta
+
+    # Get or create a demo location for this user
+    loc_result = await db.execute(
+        select(Location).where(
+            Location.user_id == current_user.id,
+            Location.gmb_location_id == f"demo_{current_user.id}",
+        )
+    )
+    location = loc_result.scalar_one_or_none()
+
+    if location is None:
+        location = Location(
+            user_id=current_user.id,
+            gmb_location_id=f"demo_{current_user.id}",
+            name=current_user.business_name or "Mon Établissement",
+            address="12 Rue de la Paix, 75001 Paris",
+            is_active=True,
+        )
+        db.add(location)
+        await db.flush()
+        await db.refresh(location)
+
+    # Insert reviews (skip existing)
+    created = 0
+    for r in DEMO_REVIEWS:
+        existing_review = await db.execute(
+            select(Review).where(
+                Review.location_id == location.id,
+                Review.gmb_review_id == f"demo_{current_user.id}_{r['gmb_review_id']}",
+            )
+        )
+        if existing_review.scalar_one_or_none() is not None:
+            continue
+
+        review = Review(
+            location_id=location.id,
+            gmb_review_id=f"demo_{current_user.id}_{r['gmb_review_id']}",
+            author_name=r["author_name"],
+            rating=r["rating"],
+            comment=r["comment"],
+            language=r["language"],
+            review_date=datetime.now(timezone.utc) - timedelta(days=r["days_ago"]),
+            status="pending",
+        )
+        db.add(review)
+        created += 1
+
+    await db.flush()
+    return {"created": created, "location": location.name}
+
+
 @router.post("/seed-mock", status_code=201)
 async def seed_mock(db: AsyncSession = Depends(get_db)):
     """Seed mock data for development/testing. Only works when DB host is localhost or postgres."""
@@ -90,7 +200,11 @@ async def sync_reviews(
 ):
     """Sync reviews from GMB for one or all locations."""
     if not current_user.access_token:
-        raise HTTPException(status_code=400, detail="No Google access token found")
+        return {
+            "synced_locations": 0,
+            "new_reviews": 0,
+            "message": "No Google account connected. Please sign in with Google to sync reviews.",
+        }
 
     # Get locations to sync
     query = select(Location).where(
@@ -104,7 +218,11 @@ async def sync_reviews(
     locations = result.scalars().all()
 
     if not locations:
-        raise HTTPException(status_code=404, detail="No active locations found")
+        return {
+            "synced_locations": 0,
+            "new_reviews": 0,
+            "message": "No active locations found. Go to Settings to sync your Google Business locations.",
+        }
 
     gmb = GMBService(current_user.access_token)
     total_new = 0

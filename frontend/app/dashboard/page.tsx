@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { reviewsApi, locationsApi } from "@/lib/api";
+import { reviewsApi, locationsApi, usersApi } from "@/lib/api";
 import type { ReviewList, Location } from "@/types";
 import StatsWidget from "@/components/StatsWidget";
 import ReviewCard from "@/components/ReviewCard";
@@ -13,19 +13,60 @@ export default function DashboardPage() {
   const [reviewData, setReviewData] = useState<ReviewList | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasGoogleAccount, setHasGoogleAccount] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState("");
+  const [seedingDemo, setSeedingDemo] = useState(false);
+  const [demoMsg, setDemoMsg] = useState("");
 
   useEffect(() => {
     Promise.all([
       reviewsApi.list({ limit: 10 }),
       locationsApi.list(),
+      usersApi.me(),
     ])
-      .then(([reviews, locs]) => {
+      .then(([reviews, locs, me]) => {
         setReviewData(reviews);
         setLocations(locs);
+        setHasGoogleAccount(!!me.google_id);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
+
+  const handleSeedDemo = async () => {
+    setSeedingDemo(true);
+    setDemoMsg("");
+    try {
+      const result = await reviewsApi.seedDemo();
+      setDemoMsg(result.created > 0 ? tR("demoLoaded") : "Already loaded.");
+      const updated = await reviewsApi.list({ limit: 10 });
+      setReviewData(updated);
+    } catch {
+      setDemoMsg("Failed to load demo reviews.");
+    } finally {
+      setSeedingDemo(false);
+    }
+  };
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncMsg("");
+    try {
+      const result = await reviewsApi.sync();
+      if (result.message) {
+        setSyncMsg(result.message);
+      } else {
+        setSyncMsg(`Synced ${result.new_reviews ?? 0} new review(s).`);
+        const updated = await reviewsApi.list({ limit: 10 });
+        setReviewData(updated);
+      }
+    } catch {
+      setSyncMsg("Sync failed. Please try again.");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const pending = reviewData?.reviews.filter((r) => r.status === "pending").length ?? 0;
   const total = reviewData?.total ?? 0;
@@ -53,17 +94,53 @@ export default function DashboardPage() {
         <StatsWidget label={t("avgRating")} value={avgRating > 0 ? `${avgRating.toFixed(1)} ⭐` : "—"} />
       </div>
 
+      {/* No Google account banner */}
+      {!hasGoogleAccount && (
+        <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl px-4 py-3">
+          <span className="text-amber-500 text-lg mt-0.5">⚠</span>
+          <div>
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+              No Google account connected
+            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+              To sync Google Business reviews, sign in with Google.{" "}
+              <a
+                href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/auth/login`}
+                className="underline font-medium"
+              >
+                Connect Google account
+              </a>
+            </p>
+          </div>
+        </div>
+      )}
+
       <div>
         <h2 className="text-lg font-semibold text-gray-800 dark:text-zinc-200 mb-3">{t("recentReviews")}</h2>
         {reviewData?.reviews.length === 0 ? (
-          <div className="text-center py-12 text-gray-400 dark:text-zinc-500">
+          <div className="text-center py-12 text-gray-400 dark:text-zinc-500 space-y-3">
             <p>{t("noReviews")}</p>
-            <button
-              onClick={() => reviewsApi.sync()}
-              className="mt-3 text-sm text-blue-600 dark:text-blue-400 hover:underline"
-            >
-              {t("syncFromGoogle")}
-            </button>
+            <div className="flex flex-col items-center gap-1">
+              {hasGoogleAccount && (
+                <button
+                  onClick={handleSync}
+                  disabled={syncing}
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50"
+                >
+                  {syncing ? "Syncing..." : t("syncFromGoogle")}
+                </button>
+              )}
+              <button
+                onClick={handleSeedDemo}
+                disabled={seedingDemo}
+                className="text-sm text-purple-600 dark:text-purple-400 hover:underline disabled:opacity-50"
+              >
+                {seedingDemo ? tR("loadingDemo") : tR("loadDemoReviews")}
+              </button>
+              {(syncMsg || demoMsg) && (
+                <p className="text-xs text-gray-500 dark:text-zinc-500">{syncMsg || demoMsg}</p>
+              )}
+            </div>
           </div>
         ) : (
           <div className="space-y-4">

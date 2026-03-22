@@ -2,6 +2,27 @@ import axios from "axios";
 import { getToken, logout } from "./auth";
 import type { Location, Review, ReviewList, Response, Tone } from "@/types";
 
+export interface BillingStatus {
+  subscription: {
+    status: string;
+    plan_id?: string;
+    trial_end?: string;
+    current_period_end?: string;
+  };
+  plan: {
+    id: string;
+    name: string;
+    price_eur: number;
+    max_locations: number;
+    max_responses_per_month: number;
+    features: Record<string, boolean>;
+  } | null;
+  usage: {
+    responses_this_month: number;
+    responses_limit: number;
+  };
+}
+
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
 });
@@ -38,6 +59,7 @@ export const reviewsApi = {
     api.get<ReviewList>("/reviews/", { params }).then((r) => r.data),
   sync: (location_id?: string) =>
     api.post("/reviews/sync", null, { params: { location_id } }).then((r) => r.data),
+  seedDemo: () => api.post("/reviews/seed-demo").then((r) => r.data),
   updateStatus: (id: string, status: string) =>
     api.patch(`/reviews/${id}/status`, null, { params: { status } }).then((r) => r.data),
 };
@@ -52,6 +74,23 @@ export const responsesApi = {
     api.post<Response>(`/responses/${response_id}/publish`).then((r) => r.data),
   getForReview: (review_id: string) =>
     api.get<Response | null>(`/responses/review/${review_id}`).then((r) => r.data),
+};
+
+// --- Users ---
+export const usersApi = {
+  me: () => api.get("/users/me").then((r) => r.data),
+  update: (data: { business_name?: string; tone_preference?: string; language?: string; onboarding_done?: boolean }) =>
+    api.patch("/users/me", data).then((r) => r.data),
+  changePassword: (current_password: string, new_password: string) =>
+    api.post("/users/me/change-password", { current_password, new_password }).then((r) => r.data),
+};
+
+// --- Billing ---
+export const billingApi = {
+  status: () => api.get<BillingStatus>("/billing/status").then((r) => r.data),
+  checkout: (plan_id: string) =>
+    api.post<{ checkout_url: string }>("/billing/checkout", { plan_id }).then((r) => r.data),
+  portal: () => api.post<{ portal_url: string }>("/billing/portal").then((r) => r.data),
 };
 
 export default api;

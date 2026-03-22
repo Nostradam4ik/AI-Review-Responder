@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import String, DateTime, Text
+from sqlalchemy import Boolean, String, DateTime, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -22,6 +22,11 @@ class User(Base):
     language: Mapped[str] = mapped_column(String(10), default="auto")
     plan: Mapped[str] = mapped_column(String(20), default="free")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    # Email/password auth
+    password_hash: Mapped[str | None] = mapped_column(Text)
+    email_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    onboarding_done: Mapped[bool] = mapped_column(Boolean, default=False)
 
     locations: Mapped[list["Location"]] = relationship("Location", back_populates="user", cascade="all, delete-orphan")
     subscription: Mapped["Subscription | None"] = relationship("Subscription", back_populates="user", uselist=False)

@@ -15,6 +15,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: "/dashboard", label: t("dashboard") },
     { href: "/dashboard/reviews", label: t("reviews") },
     { href: "/dashboard/settings", label: t("settings") },
+    { href: "/dashboard/billing", label: t("billing") },
   ];
 
   return (

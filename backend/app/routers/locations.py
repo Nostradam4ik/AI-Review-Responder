@@ -40,7 +40,8 @@ async def sync_locations(
 ):
     """Fetch locations from GMB API and sync to DB."""
     if not current_user.access_token:
-        raise HTTPException(status_code=400, detail="No Google access token found")
+        return {"synced": 0, "new": 0, "locations": [],
+                "message": "No Google account connected. Please sign in with Google to sync locations."}
 
     gmb = GMBService(current_user.access_token)
     try:

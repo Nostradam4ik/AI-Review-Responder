@@ -4,14 +4,22 @@ from urllib.parse import urlencode
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import RedirectResponse
+from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.core.security import create_access_token
+from app.core.security import (
+    create_access_token,
+    create_email_token,
+    decode_email_token,
+    hash_password,
+    verify_password,
+)
 from app.database import get_db
 from app.models.subscription import Subscription
 from app.models.user import User
+from app.services.email_service import send_reset_email, send_verification_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -147,3 +155,137 @@ async def mock_login(db: AsyncSession = Depends(get_db)):
 
     token = create_access_token({"sub": str(user.id)})
     return {"access_token": token, "token_type": "bearer"}
+
+
+# ── Email / password auth ────────────────────────────────────────────────────
+
+
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str
+    business_name: str = ""
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+@router.post("/register", status_code=201)
+async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
+    """Create account with email/password, send verification email."""
+    if len(body.password) < 8:
+        raise HTTPException(400, "Password must be at least 8 characters")
+
+    existing = await db.execute(select(User).where(User.email == body.email))
+    if existing.scalar_one_or_none():
+        raise HTTPException(409, "An account with this email already exists")
+
+    auto_verify = settings.AUTO_VERIFY_EMAIL
+
+    user = User(
+        email=body.email,
+        business_name=body.business_name or None,
+        password_hash=hash_password(body.password),
+        email_verified=auto_verify,
+        onboarding_done=bool(body.business_name),
+    )
+    db.add(user)
+    await db.flush()
+    await db.refresh(user)
+
+    db.add(Subscription(
+        user_id=user.id,
+        plan_id="starter",
+        status="trialing",
+        trial_end=datetime.now(timezone.utc) + timedelta(days=14),
+    ))
+    await db.flush()
+
+    if auto_verify:
+        return {"message": "Account created. You can now sign in.", "verified": True}
+
+    token = create_email_token(body.email, "verify")
+    await send_verification_email(body.email, token)
+
+    return {"message": "Account created. Check your email to verify your address.", "verified": False}
+
+
+@router.post("/login")
+async def login_email(body: LoginRequest, db: AsyncSession = Depends(get_db)):
+    """Authenticate with email/password, return JWT."""
+    result = await db.execute(select(User).where(User.email == body.email))
+    user = result.scalar_one_or_none()
+
+    if not user or not user.password_hash or not verify_password(body.password, user.password_hash):
+        raise HTTPException(401, "Invalid email or password")
+
+    if not user.email_verified:
+        raise HTTPException(403, "Please verify your email before logging in")
+
+    jwt_token = create_access_token({"sub": str(user.id)})
+    return {
+        "access_token": jwt_token,
+        "token_type": "bearer",
+        "onboarding_done": user.onboarding_done,
+    }
+
+
+@router.get("/verify-email")
+async def verify_email(token: str = Query(...), db: AsyncSession = Depends(get_db)):
+    """Verify email address via token from the verification email."""
+    try:
+        email = decode_email_token(token, "verify")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(404, "User not found")
+
+    user.email_verified = True
+    await db.commit()
+
+    return RedirectResponse(f"{settings.FRONTEND_URL}/login?verified=1")
+
+
+@router.post("/forgot-password")
+async def forgot_password(body: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
+    """Send password-reset email (always returns 200 to avoid user enumeration)."""
+    result = await db.execute(select(User).where(User.email == body.email))
+    user = result.scalar_one_or_none()
+    if user and user.password_hash:
+        token = create_email_token(body.email, "reset")
+        await send_reset_email(body.email, token)
+    return {"message": "If that email exists, a reset link has been sent."}
+
+
+@router.post("/reset-password")
+async def reset_password(body: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+    """Apply new password from reset token."""
+    try:
+        email = decode_email_token(body.token, "reset")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    if len(body.new_password) < 8:
+        raise HTTPException(400, "Password must be at least 8 characters")
+
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(404, "User not found")
+
+    user.password_hash = hash_password(body.new_password)
+    await db.commit()
+    return {"message": "Password updated successfully"}

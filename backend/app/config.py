@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     # Resend (email)
     RESEND_API_KEY: str = ""
     FROM_EMAIL: str = "noreply@yourapp.com"
+    # Set to true in dev to skip email verification (useful when Resend domain isn't verified)
+    AUTO_VERIFY_EMAIL: bool = False
 
     class Config:
         env_file = (".env", "../.env")

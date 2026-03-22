@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { reviewsApi } from "@/lib/api";
+import { reviewsApi, usersApi } from "@/lib/api";
 import type { Review, ReviewStatus } from "@/types";
 import ReviewCard from "@/components/ReviewCard";
 import { useTranslations } from "next-intl";
@@ -13,6 +13,9 @@ export default function ReviewsPage() {
   const [status, setStatus] = useState<ReviewStatus | "all">("all");
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [hasGoogleAccount, setHasGoogleAccount] = useState(false);
+  const [seedingDemo, setSeedingDemo] = useState(false);
+  const [demoMsg, setDemoMsg] = useState("");
 
   const STATUS_FILTERS: { label: string; value: ReviewStatus | "all" }[] = [
     { label: t("all"), value: "all" },
@@ -37,7 +40,10 @@ export default function ReviewsPage() {
     }
   }, [status]);
 
-  useEffect(() => { fetchReviews(); }, [fetchReviews]);
+  useEffect(() => {
+    usersApi.me().then((me) => setHasGoogleAccount(!!me.google_id)).catch(() => {});
+    fetchReviews();
+  }, [fetchReviews]);
 
   const handleSync = async () => {
     setSyncing(true);
@@ -49,6 +55,20 @@ export default function ReviewsPage() {
     }
   };
 
+  const handleSeedDemo = async () => {
+    setSeedingDemo(true);
+    setDemoMsg("");
+    try {
+      const result = await reviewsApi.seedDemo();
+      setDemoMsg(result.created > 0 ? t("demoLoaded") : "Already loaded.");
+      await fetchReviews();
+    } catch {
+      setDemoMsg("Failed to load demo reviews.");
+    } finally {
+      setSeedingDemo(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -56,13 +76,15 @@ export default function ReviewsPage() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100">{t("title")}</h1>
           <p className="text-gray-500 dark:text-zinc-400 text-sm mt-1">{t("total", { count: total })}</p>
         </div>
-        <button
-          onClick={handleSync}
-          disabled={syncing}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition"
-        >
-          {syncing ? t("syncing") : t("syncButton")}
-        </button>
+        {hasGoogleAccount && (
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition"
+          >
+            {syncing ? t("syncing") : t("syncButton")}
+          </button>
+        )}
       </div>
 
       <div className="flex gap-2">
@@ -84,7 +106,19 @@ export default function ReviewsPage() {
       {loading ? (
         <div className="text-center py-12 text-gray-400 dark:text-zinc-500">{t("loading")}</div>
       ) : reviews.length === 0 ? (
-        <div className="text-center py-12 text-gray-400 dark:text-zinc-500">{t("noReviews")}</div>
+        <div className="text-center py-12 text-gray-400 dark:text-zinc-500 space-y-3">
+          <p>{t("noReviews")}</p>
+          <div className="space-y-1">
+            <button
+              onClick={handleSeedDemo}
+              disabled={seedingDemo}
+              className="text-sm text-purple-600 dark:text-purple-400 hover:underline disabled:opacity-50"
+            >
+              {seedingDemo ? t("loadingDemo") : t("loadDemoReviews")}
+            </button>
+            {demoMsg && <p className="text-xs text-gray-500 dark:text-zinc-500">{demoMsg}</p>}
+          </div>
+        </div>
       ) : (
         <div className="space-y-4">
           {reviews.map((review) => (
