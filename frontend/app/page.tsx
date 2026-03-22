@@ -1,35 +1,48 @@
 import Link from "next/link";
+import { CheckCircle2, Bot, Globe, Zap, BarChart3, Bell, Shield, ArrowRight, Star } from "lucide-react";
 
 const FEATURES = [
   {
-    icon: "🤖",
+    icon: Bot,
     title: "AI-Powered Responses",
     desc: "Generate professional, on-brand replies to every review in seconds using Groq AI. Choose formal, warm, or casual tone.",
+    color: "text-indigo-400",
+    bg: "bg-indigo-500/10",
   },
   {
-    icon: "🌍",
+    icon: Globe,
     title: "Multilingual",
     desc: "Automatically detects the review language and responds in the same language — French, English, Ukrainian, German, Spanish, and more.",
+    color: "text-blue-400",
+    bg: "bg-blue-500/10",
   },
   {
-    icon: "⚡",
+    icon: Zap,
     title: "Google Business Sync",
     desc: "Connect your Google Business Profile and publish responses directly to Google — without leaving the dashboard.",
+    color: "text-amber-400",
+    bg: "bg-amber-500/10",
   },
   {
-    icon: "📊",
+    icon: BarChart3,
     title: "Usage Analytics",
     desc: "Track your response rate, average rating, and monthly usage at a glance.",
+    color: "text-emerald-400",
+    bg: "bg-emerald-500/10",
   },
   {
-    icon: "🔔",
+    icon: Bell,
     title: "Telegram Notifications",
     desc: "Get instant alerts when new reviews come in, so you never miss a customer.",
+    color: "text-violet-400",
+    bg: "bg-violet-500/10",
   },
   {
-    icon: "🔒",
+    icon: Shield,
     title: "Secure & Private",
     desc: "Your Google tokens are stored securely. We never post without your approval.",
+    color: "text-rose-400",
+    bg: "bg-rose-500/10",
   },
 ];
 
@@ -39,8 +52,6 @@ const PLANS = [
     name: "Starter",
     price: 29,
     desc: "For small businesses just getting started.",
-    locations: 1,
-    responses: 50,
     features: ["1 Google Business location", "50 AI responses/month", "Google Business sync", "Email support"],
   },
   {
@@ -48,8 +59,6 @@ const PLANS = [
     name: "Pro",
     price: 59,
     desc: "For growing businesses with more reviews.",
-    locations: 3,
-    responses: 200,
     popular: true,
     features: ["3 locations", "200 AI responses/month", "Auto-respond scheduler", "Telegram alerts", "Analytics & CSV export"],
   },
@@ -58,132 +67,180 @@ const PLANS = [
     name: "Agency",
     price: 149,
     desc: "For agencies managing multiple clients.",
-    locations: 10,
-    responses: 0,
     features: ["10 locations", "Unlimited AI responses", "White-label ready", "Priority support"],
   },
 ];
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-white dark:bg-zinc-950 text-gray-900 dark:text-zinc-100">
+    <div className="min-h-screen bg-[#0A0A0F] text-slate-100">
       {/* Navbar */}
-      <header className="sticky top-0 z-10 bg-white/80 dark:bg-zinc-950/80 backdrop-blur border-b border-gray-100 dark:border-zinc-900 px-6 py-4 flex items-center justify-between max-w-6xl mx-auto">
-        <span className="font-bold text-lg">⭐ AI Review Responder</span>
-        <div className="flex items-center gap-3">
-          <Link href="/login" className="text-sm text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-100 transition">
-            Sign in
-          </Link>
-          <Link
-            href="/register"
-            className="text-sm bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg transition"
-          >
-            Start free trial
-          </Link>
+      <header className="sticky top-0 z-10 bg-[#0A0A0F]/80 backdrop-blur border-b border-[#2A2A3E] px-6 py-4">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center">
+              <Star className="w-3.5 h-3.5 text-white" fill="currentColor" />
+            </div>
+            <span className="font-semibold text-white text-sm">AI Review Responder</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/login"
+              className="text-sm text-slate-400 hover:text-white transition-colors"
+            >
+              Sign in
+            </Link>
+            <Link
+              href="/register"
+              className="text-sm bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-4 py-2 rounded-lg transition-all active:scale-95"
+            >
+              Start free trial
+            </Link>
+          </div>
         </div>
       </header>
 
       {/* Hero */}
-      <section className="max-w-4xl mx-auto px-6 pt-20 pb-16 text-center">
-        <div className="inline-flex items-center gap-2 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 text-xs font-semibold px-3 py-1.5 rounded-full mb-6">
-          14-day free trial · No credit card required
-        </div>
-        <h1 className="text-5xl sm:text-6xl font-extrabold leading-tight tracking-tight text-gray-900 dark:text-zinc-50">
-          Reply to every Google review{" "}
-          <span className="text-blue-600 dark:text-blue-400">in seconds</span>
-        </h1>
-        <p className="mt-6 text-xl text-gray-500 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed">
-          AI Review Responder connects to your Google Business Profile and generates personalized, multilingual responses to customer reviews — automatically.
-        </p>
-        <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-          <Link
-            href="/register"
-            className="px-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-lg transition shadow-lg shadow-blue-200 dark:shadow-blue-950/50"
-          >
-            Start free — no card needed
-          </Link>
-          <Link
-            href="/login"
-            className="px-8 py-3.5 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 font-semibold rounded-xl text-lg hover:bg-gray-50 dark:hover:bg-zinc-900 transition"
-          >
-            Sign in
-          </Link>
+      <section className="bg-grid relative overflow-hidden">
+        <div className="max-w-4xl mx-auto px-6 pt-24 pb-20 text-center relative z-10">
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-medium px-4 py-1.5 rounded-full mb-8">
+            <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full pulse-dot" />
+            New — AI-powered review management
+          </div>
+
+          <h1 className="text-5xl sm:text-6xl font-bold text-white leading-tight tracking-tight mb-6">
+            Répondez à tous vos avis{" "}
+            <span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+              Google
+            </span>{" "}
+            en 1 clic
+          </h1>
+
+          <p className="text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed mb-10">
+            AI Review Responder connects to your Google Business Profile and generates personalized,
+            multilingual responses to customer reviews — automatically.
+          </p>
+
+          {/* CTA buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link
+              href="/register"
+              className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-lg transition-all active:scale-95 shadow-[0_0_40px_rgba(99,102,241,0.3)]"
+            >
+              Commencer gratuitement
+              <ArrowRight className="w-5 h-5" />
+            </Link>
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center gap-2 px-8 py-4 border border-[#2A2A3E] hover:border-indigo-500/40 text-slate-300 hover:text-white font-semibold rounded-xl text-lg transition-all hover:bg-[#1A1A2E]/50"
+            >
+              Voir la démo
+            </Link>
+          </div>
+
+          {/* Social proof */}
+          <div className="mt-12 flex items-center justify-center gap-3 text-sm text-slate-500">
+            <div className="flex -space-x-2">
+              {["M", "J", "S", "A", "L"].map((letter, i) => (
+                <div
+                  key={i}
+                  className="w-8 h-8 rounded-full border-2 border-[#0A0A0F] flex items-center justify-center text-white text-xs font-bold"
+                  style={{
+                    background: `hsl(${[250, 210, 160, 290, 320][i]}, 70%, 50%)`,
+                  }}
+                >
+                  {letter}
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-yellow-400 text-xs">★★★★★</span>
+              <span>Trusted by 500+ restaurants in France</span>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Social proof strip */}
-      <div className="bg-gray-50 dark:bg-zinc-900 border-y border-gray-100 dark:border-zinc-800 py-4">
-        <p className="text-center text-sm text-gray-500 dark:text-zinc-400">
-          Trusted by restaurants, hotels, and local businesses · Responds in 6+ languages · Powered by Groq AI
+      <div className="border-y border-[#2A2A3E] py-4 bg-[#111118]/50">
+        <p className="text-center text-sm text-slate-500">
+          Responds in 6+ languages · Powered by Groq AI · No credit card required
         </p>
       </div>
 
       {/* Features */}
-      <section className="max-w-6xl mx-auto px-6 py-20">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-zinc-100">Everything you need to manage reviews</h2>
-          <p className="mt-3 text-gray-500 dark:text-zinc-400">Stop spending hours crafting replies. Let AI do it in seconds.</p>
+      <section className="max-w-6xl mx-auto px-6 py-24">
+        <div className="text-center mb-14">
+          <h2 className="text-3xl font-bold text-white">Everything you need to manage reviews</h2>
+          <p className="mt-3 text-slate-400">Stop spending hours crafting replies. Let AI do it in seconds.</p>
         </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {FEATURES.map((f) => (
-            <div
-              key={f.title}
-              className="flex flex-col gap-3 p-6 rounded-2xl border border-gray-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:shadow-md dark:hover:shadow-zinc-900 transition"
-            >
-              <span className="text-3xl">{f.icon}</span>
-              <h3 className="font-semibold text-gray-900 dark:text-zinc-100">{f.title}</h3>
-              <p className="text-sm text-gray-500 dark:text-zinc-400 leading-relaxed">{f.desc}</p>
-            </div>
-          ))}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {FEATURES.map((f) => {
+            const Icon = f.icon;
+            return (
+              <div
+                key={f.title}
+                className="flex flex-col gap-4 p-6 bg-[#111118] rounded-xl border border-[#2A2A3E] hover:border-indigo-500/30 hover:-translate-y-0.5 transition-all duration-200"
+              >
+                <div className={`w-10 h-10 ${f.bg} rounded-lg flex items-center justify-center`}>
+                  <Icon className={`w-5 h-5 ${f.color}`} />
+                </div>
+                <h3 className="font-semibold text-white">{f.title}</h3>
+                <p className="text-sm text-slate-400 leading-relaxed">{f.desc}</p>
+              </div>
+            );
+          })}
         </div>
       </section>
 
       {/* Pricing */}
-      <section id="pricing" className="bg-gray-50 dark:bg-zinc-900 border-y border-gray-100 dark:border-zinc-800 py-20">
+      <section id="pricing" className="bg-[#111118]/50 border-y border-[#2A2A3E] py-24">
         <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-zinc-100">Simple, transparent pricing</h2>
-            <p className="mt-3 text-gray-500 dark:text-zinc-400">Start with a 14-day free trial. Upgrade anytime.</p>
+          <div className="text-center mb-14">
+            <h2 className="text-3xl font-bold text-white">Simple, transparent pricing</h2>
+            <p className="mt-3 text-slate-400">Start with a 14-day free trial. Upgrade anytime.</p>
           </div>
 
           <div className="grid sm:grid-cols-3 gap-6">
             {PLANS.map((p) => (
               <div
                 key={p.id}
-                className={`relative flex flex-col gap-5 rounded-2xl border p-7 bg-white dark:bg-zinc-950 ${
+                className={`relative flex flex-col gap-6 rounded-xl p-7 transition-all ${
                   p.popular
-                    ? "border-blue-500 dark:border-blue-400 shadow-xl shadow-blue-100 dark:shadow-blue-950/30"
-                    : "border-gray-200 dark:border-zinc-700"
+                    ? "border-2 border-indigo-500 bg-[#111118] glow-indigo"
+                    : "border border-[#2A2A3E] bg-[#111118] hover:border-indigo-500/30"
                 }`}
               >
                 {p.popular && (
-                  <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-xs font-bold px-4 py-1 rounded-full">
+                  <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[11px] font-bold px-4 py-1 rounded-full">
                     Most popular
                   </span>
                 )}
                 <div>
-                  <p className="font-bold text-lg text-gray-900 dark:text-zinc-100">{p.name}</p>
-                  <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">{p.desc}</p>
-                  <p className="mt-4 text-4xl font-extrabold text-gray-900 dark:text-zinc-50">
+                  <p className="font-bold text-lg text-white">{p.name}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{p.desc}</p>
+                  <p className="mt-5 text-4xl font-extrabold text-white">
                     €{p.price}
-                    <span className="text-base font-normal text-gray-500 dark:text-zinc-400">/mo</span>
+                    <span className="text-base font-normal text-slate-500">/mo</span>
                   </p>
                 </div>
 
-                <ul className="space-y-2 flex-1">
+                <ul className="space-y-2.5 flex-1">
                   {p.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-sm text-gray-600 dark:text-zinc-400">
-                      <span className="text-green-500 mt-0.5 shrink-0">✓</span> {f}
+                    <li key={f} className="flex items-start gap-2.5 text-sm text-slate-400">
+                      <CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+                      {f}
                     </li>
                   ))}
                 </ul>
 
                 <Link
                   href="/register"
-                  className={`text-center py-3 rounded-xl font-semibold text-sm transition ${
+                  className={`text-center py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 ${
                     p.popular
-                      ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 dark:shadow-blue-950"
-                      : "border border-gray-300 dark:border-zinc-600 text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-900"
+                      ? "bg-indigo-600 hover:bg-indigo-500 text-white shadow-[0_0_20px_rgba(99,102,241,0.2)]"
+                      : "border border-[#2A2A3E] hover:border-indigo-500/40 text-slate-300 hover:text-white hover:bg-[#1A1A2E]"
                   }`}
                 >
                   Start free trial
@@ -192,34 +249,40 @@ export default function LandingPage() {
             ))}
           </div>
 
-          <p className="text-center mt-8 text-sm text-gray-400 dark:text-zinc-500">
+          <p className="text-center mt-8 text-sm text-slate-600">
             All plans include a 14-day free trial. Cancel anytime. Prices in EUR + VAT where applicable.
           </p>
         </div>
       </section>
 
       {/* CTA */}
-      <section className="max-w-3xl mx-auto px-6 py-20 text-center">
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-zinc-100">Ready to save hours every week?</h2>
-        <p className="mt-3 text-gray-500 dark:text-zinc-400">
+      <section className="max-w-3xl mx-auto px-6 py-24 text-center">
+        <h2 className="text-3xl font-bold text-white">Ready to save hours every week?</h2>
+        <p className="mt-3 text-slate-400">
           Join businesses that already use AI Review Responder to keep customers happy.
         </p>
         <Link
           href="/register"
-          className="mt-8 inline-block px-10 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-lg transition shadow-lg shadow-blue-200 dark:shadow-blue-950/50"
+          className="mt-10 inline-flex items-center gap-2 px-10 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-lg transition-all active:scale-95 shadow-[0_0_40px_rgba(99,102,241,0.25)]"
         >
-          Get started for free →
+          Get started for free
+          <ArrowRight className="w-5 h-5" />
         </Link>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-gray-100 dark:border-zinc-900 py-8 px-6">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-gray-400 dark:text-zinc-500">
-          <span>⭐ AI Review Responder</span>
-          <div className="flex gap-4">
-            <Link href="/login" className="hover:text-gray-600 dark:hover:text-zinc-300 transition">Sign in</Link>
-            <Link href="/register" className="hover:text-gray-600 dark:hover:text-zinc-300 transition">Register</Link>
-            <a href="#pricing" className="hover:text-gray-600 dark:hover:text-zinc-300 transition">Pricing</a>
+      <footer className="border-t border-[#2A2A3E] py-8 px-6">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-slate-600">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 bg-indigo-600 rounded-md flex items-center justify-center">
+              <Star className="w-2.5 h-2.5 text-white" fill="currentColor" />
+            </div>
+            <span>AI Review Responder</span>
+          </div>
+          <div className="flex gap-5">
+            <Link href="/login" className="hover:text-slate-400 transition-colors">Sign in</Link>
+            <Link href="/register" className="hover:text-slate-400 transition-colors">Register</Link>
+            <a href="#pricing" className="hover:text-slate-400 transition-colors">Pricing</a>
           </div>
         </div>
       </footer>

@@ -15,17 +15,17 @@ export default function ToneSelector({ value, onChange, disabled }: ToneSelector
   const t = useTranslations("reviews");
 
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-1.5">
       {TONES.map((tone) => (
         <button
           key={tone}
           onClick={() => onChange(tone)}
           disabled={disabled}
-          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+          className={`px-3 py-1 rounded-full text-xs font-medium border transition-all duration-150 active:scale-95 ${
             value === tone
-              ? "bg-blue-600 text-white border-blue-600"
-              : "bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 border-gray-200 dark:border-zinc-700 hover:border-blue-400 hover:text-blue-600"
-          } disabled:opacity-50`}
+              ? "bg-indigo-600 text-white border-indigo-600"
+              : "bg-transparent text-slate-400 border-[#2A2A3E] hover:border-indigo-500/50 hover:text-slate-200"
+          } disabled:opacity-50 disabled:cursor-not-allowed`}
         >
           {t(tone)}
         </button>

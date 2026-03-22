@@ -5,14 +5,16 @@ import { responsesApi } from "@/lib/api";
 import type { Review, Response, Tone } from "@/types";
 import ToneSelector from "./ToneSelector";
 import { useTranslations } from "next-intl";
+import { RotateCw, Send, AlertCircle } from "lucide-react";
 
 interface ResponseEditorProps {
   review: Review;
   initialResponse?: Response | null;
   onPublished?: () => void;
+  hasGoogleAccount?: boolean;
 }
 
-export default function ResponseEditor({ review, initialResponse, onPublished }: ResponseEditorProps) {
+export default function ResponseEditor({ review, initialResponse, onPublished, hasGoogleAccount = false }: ResponseEditorProps) {
   const t = useTranslations("reviews");
   const [response, setResponse] = useState<Response | null>(initialResponse ?? null);
   const [tone, setTone] = useState<Tone>("warm");
@@ -53,46 +55,67 @@ export default function ResponseEditor({ review, initialResponse, onPublished }:
   };
 
   return (
-    <div className="space-y-3 pt-3 border-t border-gray-100 dark:border-zinc-800">
-      <div className="flex items-center justify-between">
+    <div className="bg-[#0A0A0F] rounded-lg border border-[#2A2A3E] p-4 mt-1 space-y-3">
+      {/* Tone + Generate row */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <ToneSelector value={tone} onChange={setTone} disabled={generating} />
         <button
           onClick={handleGenerate}
           disabled={generating}
-          className="px-3 py-1.5 text-xs font-medium bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 disabled:opacity-50 transition"
+          className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 border border-[#2A2A3E] hover:border-[#3A3A4E] rounded-full px-3 py-1 transition-all duration-150 disabled:opacity-50 active:scale-95"
         >
+          <RotateCw className={`w-3 h-3 ${generating ? "animate-spin" : ""}`} />
           {generating ? t("generating") : response ? t("regenerate") : t("generateAIResponse")}
         </button>
       </div>
 
+      {/* Response text area */}
       {response && (
         <>
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={4}
-            className="w-full text-sm border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-700"
+            className="w-full text-sm border border-[#2A2A3E] bg-[#111118] text-slate-200 rounded-lg p-3 resize-none focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 placeholder:text-slate-600 transition-colors"
             placeholder="AI generated response..."
           />
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-400 dark:text-zinc-500">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs text-slate-600">
               {text.length} chars · via {response.model_used}
-              {response.published_at && ` · ${t("published")}`}
+              {response.published_at && <span className="text-emerald-500 ml-1">· {t("published")}</span>}
             </span>
+
             {!response.published_at && (
-              <button
-                onClick={handlePublish}
-                disabled={publishing || !text.trim()}
-                className="px-4 py-1.5 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition"
-              >
-                {publishing ? t("publishing") : t("publishToGoogle")}
-              </button>
+              hasGoogleAccount ? (
+                <button
+                  onClick={handlePublish}
+                  disabled={publishing || !text.trim()}
+                  className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg disabled:opacity-50 transition-all duration-150 active:scale-95"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  {publishing ? t("publishing") : t("publishToGoogle")}
+                </button>
+              ) : (
+                <span
+                  title={t("noGoogleToPublish")}
+                  className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium bg-[#1A1A2E] text-slate-500 rounded-lg cursor-not-allowed select-none"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  {t("publishToGoogle")}
+                </span>
+              )
             )}
           </div>
         </>
       )}
 
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {/* Error */}
+      {error && (
+        <div className="flex items-center gap-2 text-xs text-red-400">
+          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+          {error}
+        </div>
+      )}
     </div>
   );
 }

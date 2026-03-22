@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { locationsApi, usersApi } from "@/lib/api";
 import type { Location } from "@/types";
 import { useTranslations } from "next-intl";
+import { RefreshCw, CheckCircle2, MapPin, Save, KeyRound } from "lucide-react";
 
 const TONES = ["formal", "warm", "casual"] as const;
 const LANGUAGES = [
@@ -15,6 +16,12 @@ const LANGUAGES = [
   { code: "pl", label: "Polski" },
   { code: "es", label: "Español" },
 ];
+
+const inputCls =
+  "w-full px-4 py-2.5 rounded-lg border border-[#2A2A3E] bg-[#0A0A0F] text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-sm transition-colors";
+
+const sectionCls =
+  "bg-[#111118] rounded-xl border border-[#2A2A3E] p-6 space-y-5";
 
 export default function SettingsPage() {
   const t = useTranslations("settings");
@@ -97,35 +104,35 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100">{t("title")}</h1>
+      <h1 className="text-2xl font-semibold text-white tracking-tight">{t("title")}</h1>
 
       {/* Profile */}
-      <div className="bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-800 p-6">
-        <h2 className="text-base font-semibold text-gray-800 dark:text-zinc-200 mb-4">{t("profile")}</h2>
+      <div className={sectionCls}>
+        <h2 className="text-sm font-semibold text-white uppercase tracking-wider">{t("profile")}</h2>
         <form onSubmit={handleProfileSave} className="space-y-4">
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-gray-700 dark:text-zinc-300">{t("businessName")}</label>
+            <label className="text-xs font-medium text-slate-400">{t("businessName")}</label>
             <input
               type="text"
               value={businessName}
               onChange={(e) => setBusinessName(e.target.value)}
               placeholder="Your business name"
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className={inputCls}
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-gray-700 dark:text-zinc-300">{t("aiTone")}</label>
+            <label className="text-xs font-medium text-slate-400">{t("aiTone")}</label>
             <div className="flex gap-2">
               {TONES.map((t_) => (
                 <button
                   key={t_}
                   type="button"
                   onClick={() => setTone(t_)}
-                  className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition ${
+                  className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all duration-150 active:scale-95 ${
                     tone === t_
-                      ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300"
-                      : "border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-400 hover:border-gray-300 dark:hover:border-zinc-600"
+                      ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
+                      : "border-[#2A2A3E] text-slate-400 hover:border-indigo-500/40 hover:text-slate-200"
                   }`}
                 >
                   {tR(t_)}
@@ -135,28 +142,34 @@ export default function SettingsPage() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-gray-700 dark:text-zinc-300">{t("responseLanguage")}</label>
+            <label className="text-xs font-medium text-slate-400">{t("responseLanguage")}</label>
             <select
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className={inputCls + " cursor-pointer"}
             >
               {LANGUAGES.map((l) => (
-                <option key={l.code} value={l.code}>{l.label}</option>
+                <option key={l.code} value={l.code} className="bg-[#111118]">
+                  {l.label}
+                </option>
               ))}
             </select>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 pt-1">
             <button
               type="submit"
               disabled={profileSaving}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition"
+              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-all disabled:opacity-50 active:scale-95"
             >
+              <Save className="w-3.5 h-3.5" />
               {profileSaving ? t("saving") : t("saveChanges")}
             </button>
             {profileMsg && (
-              <span className="text-sm text-green-600 dark:text-green-400">{profileMsg}</span>
+              <span className={`text-xs flex items-center gap-1 ${profileMsg === "Saved!" ? "text-emerald-400" : "text-red-400"}`}>
+                {profileMsg === "Saved!" && <CheckCircle2 className="w-3.5 h-3.5" />}
+                {profileMsg}
+              </span>
             )}
           </div>
         </form>
@@ -164,40 +177,47 @@ export default function SettingsPage() {
 
       {/* Password */}
       {hasPassword && (
-        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-800 p-6">
-          <h2 className="text-base font-semibold text-gray-800 dark:text-zinc-200 mb-4">{t("changePassword")}</h2>
+        <div className={sectionCls}>
+          <div className="flex items-center gap-2">
+            <KeyRound className="w-4 h-4 text-slate-400" />
+            <h2 className="text-sm font-semibold text-white uppercase tracking-wider">{t("changePassword")}</h2>
+          </div>
           <form onSubmit={handlePasswordChange} className="space-y-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-gray-700 dark:text-zinc-300">{t("currentPassword")}</label>
+              <label className="text-xs font-medium text-slate-400">{t("currentPassword")}</label>
               <input
                 type="password"
                 required
                 value={currentPw}
                 onChange={(e) => setCurrentPw(e.target.value)}
                 placeholder="••••••••"
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                className={inputCls}
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-gray-700 dark:text-zinc-300">{t("newPassword")}</label>
+              <label className="text-xs font-medium text-slate-400">{t("newPassword")}</label>
               <input
                 type="password"
                 required
                 value={newPw}
                 onChange={(e) => setNewPw(e.target.value)}
                 placeholder="At least 8 characters"
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                className={inputCls}
               />
             </div>
             {pwMsg && (
-              <p className={`text-sm px-3 py-2 rounded-lg ${pwMsg.ok ? "text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/30" : "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30"}`}>
+              <p className={`text-xs px-3 py-2 rounded-lg border ${
+                pwMsg.ok
+                  ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+                  : "text-red-400 bg-red-500/10 border-red-500/20"
+              }`}>
                 {pwMsg.text}
               </p>
             )}
             <button
               type="submit"
               disabled={pwSaving}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition"
+              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-all disabled:opacity-50 active:scale-95"
             >
               {pwSaving ? t("saving") : t("updatePassword")}
             </button>
@@ -206,30 +226,36 @@ export default function SettingsPage() {
       )}
 
       {/* Locations */}
-      <div className="bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-800 p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-gray-800 dark:text-zinc-200">{t("locations")}</h2>
+      <div className={sectionCls}>
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-slate-400" />
+            <h2 className="text-sm font-semibold text-white uppercase tracking-wider">{t("locations")}</h2>
+          </div>
           <button
             onClick={handleSyncLocations}
             disabled={syncing}
-            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition"
+            className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-medium transition-all disabled:opacity-50 active:scale-95"
           >
+            <RefreshCw className={`w-3 h-3 ${syncing ? "animate-spin" : ""}`} />
             {syncing ? t("syncing") : t("syncLocations")}
           </button>
         </div>
 
-        {syncMsg && <p className="text-sm text-green-600 dark:text-green-400">{syncMsg}</p>}
+        {syncMsg && (
+          <p className="text-xs text-emerald-400">{syncMsg}</p>
+        )}
 
         {locations.length === 0 ? (
-          <p className="text-gray-400 dark:text-zinc-500 text-sm">{t("noLocations")}</p>
+          <p className="text-slate-500 text-sm">{t("noLocations")}</p>
         ) : (
-          <ul className="divide-y divide-gray-100 dark:divide-zinc-800">
+          <ul className="space-y-2">
             {locations.map((loc) => (
-              <li key={loc.id} className="py-3 flex items-start gap-3">
-                <span className="text-green-500 mt-0.5">✓</span>
+              <li key={loc.id} className="flex items-start gap-3 p-3 bg-[#0A0A0F] rounded-lg border border-[#2A2A3E]">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-sm font-medium text-gray-800 dark:text-zinc-200">{loc.name}</p>
-                  {loc.address && <p className="text-xs text-gray-400 dark:text-zinc-500">{loc.address}</p>}
+                  <p className="text-sm font-medium text-white">{loc.name}</p>
+                  {loc.address && <p className="text-xs text-slate-500 mt-0.5">{loc.address}</p>}
                 </div>
               </li>
             ))}
