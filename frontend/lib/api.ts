@@ -60,6 +60,13 @@ export const reviewsApi = {
   sync: (location_id?: string) =>
     api.post("/reviews/sync", null, { params: { location_id } }).then((r) => r.data),
   seedDemo: () => api.post("/reviews/seed-demo").then((r) => r.data),
+  testTelegram: () =>
+    fetch("/api/test-telegram", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${typeof window !== "undefined" ? (localStorage.getItem("air_token") || "") : ""}`,
+      },
+    }).then((r) => r.json()),
   updateStatus: (id: string, status: string) =>
     api.patch(`/reviews/${id}/status`, null, { params: { status } }).then((r) => r.data),
 };

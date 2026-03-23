@@ -42,7 +42,8 @@
     "warm": "Chaleureux",
     "casual": "Décontracté",
     "failedGenerate": "Échec de la génération de réponse.",
-    "failedPublish": "Échec de la publication de la réponse."
+    "failedPublish": "Échec de la publication de la réponse.",
+    "noGoogleToPublish": "Connectez un compte Google pour publier sur Google Business"
   },
   "settings": {
     "title": "Paramètres",

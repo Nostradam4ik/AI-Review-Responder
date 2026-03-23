@@ -41,6 +41,7 @@
     "formal": "Formal",
     "warm": "Cálido",
     "casual": "Casual",
+    "noGoogleToPublish": "Conecta una cuenta de Google para publicar en Google Business",
     "failedGenerate": "Error al generar la respuesta.",
     "failedPublish": "Error al publicar la respuesta."
   },

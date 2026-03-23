@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { locationsApi, usersApi } from "@/lib/api";
+import { locationsApi, usersApi, reviewsApi } from "@/lib/api";
 import type { Location } from "@/types";
 import { useTranslations } from "next-intl";
-import { RefreshCw, CheckCircle2, MapPin, Save, KeyRound } from "lucide-react";
+import { RefreshCw, CheckCircle2, MapPin, Save, KeyRound, Send } from "lucide-react";
 
 const TONES = ["formal", "warm", "casual"] as const;
 const LANGUAGES = [
@@ -38,6 +38,10 @@ export default function SettingsPage() {
   const [language, setLanguage] = useState("auto");
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMsg, setProfileMsg] = useState("");
+
+  // Telegram
+  const [telegramTesting, setTelegramTesting] = useState(false);
+  const [telegramMsg, setTelegramMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
   // Password
   const [hasPassword, setHasPassword] = useState(false);
@@ -224,6 +228,44 @@ export default function SettingsPage() {
           </form>
         </div>
       )}
+
+      {/* Telegram */}
+      <div className={sectionCls}>
+        <div className="flex items-center gap-2">
+          <Send className="w-4 h-4 text-slate-400" />
+          <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Telegram Notifications</h2>
+        </div>
+        <p className="text-xs text-slate-500">
+          Receive instant alerts when new reviews come in. Configure <code className="text-slate-400">TELEGRAM_BOT_TOKEN</code> and <code className="text-slate-400">TELEGRAM_CHAT_ID</code> in your server environment.
+        </p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={async () => {
+              setTelegramTesting(true);
+              setTelegramMsg(null);
+              try {
+                const res = await reviewsApi.testTelegram();
+                setTelegramMsg({ text: res.message, ok: res.ok });
+              } catch {
+                setTelegramMsg({ text: "Failed to send test message.", ok: false });
+              } finally {
+                setTelegramTesting(false);
+              }
+            }}
+            disabled={telegramTesting}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-all disabled:opacity-50 active:scale-95"
+          >
+            <Send className="w-3.5 h-3.5" />
+            {telegramTesting ? "Sending..." : "Send test message"}
+          </button>
+          {telegramMsg && (
+            <span className={`text-xs flex items-center gap-1 ${telegramMsg.ok ? "text-emerald-400" : "text-red-400"}`}>
+              {telegramMsg.ok && <CheckCircle2 className="w-3.5 h-3.5" />}
+              {telegramMsg.text}
+            </span>
+          )}
+        </div>
+      </div>
 
       {/* Locations */}
       <div className={sectionCls}>

@@ -42,7 +42,8 @@
     "warm": "Warm",
     "casual": "Casual",
     "failedGenerate": "Failed to generate response.",
-    "failedPublish": "Failed to publish response."
+    "failedPublish": "Failed to publish response.",
+    "noGoogleToPublish": "Connect a Google account to publish to Google Business"
   },
   "settings": {
     "title": "Settings",

@@ -41,6 +41,7 @@
     "formal": "Formell",
     "warm": "Herzlich",
     "casual": "Locker",
+    "noGoogleToPublish": "Google-Konto verbinden, um auf Google Business zu veröffentlichen",
     "failedGenerate": "Antwort konnte nicht generiert werden.",
     "failedPublish": "Veröffentlichung fehlgeschlagen."
   },

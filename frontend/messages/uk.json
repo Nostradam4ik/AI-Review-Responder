@@ -42,6 +42,7 @@
     "warm": "Теплий",
     "casual": "Невимушений",
     "failedGenerate": "Помилка генерації відповіді.",
+    "noGoogleToPublish": "Підключіть Google акаунт для публікації в Google Business",
     "failedPublish": "Помилка публікації відповіді."
   },
   "settings": {
