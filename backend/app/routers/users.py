@@ -21,6 +21,8 @@ class UserProfileResponse(BaseModel):
     onboarding_done: bool
     has_password: bool
     telegram_connected: bool
+    auto_publish: bool
+    response_instructions: str | None
 
 
 class UpdateProfileRequest(BaseModel):
@@ -28,6 +30,8 @@ class UpdateProfileRequest(BaseModel):
     tone_preference: str | None = None
     language: str | None = None
     onboarding_done: bool | None = None
+    auto_publish: bool | None = None
+    response_instructions: str | None = None
 
 
 class ChangePasswordRequest(BaseModel):
@@ -46,6 +50,8 @@ def _profile(user: User) -> UserProfileResponse:
         onboarding_done=user.onboarding_done,
         has_password=bool(user.password_hash),
         telegram_connected=bool(user.telegram_chat_id),
+        auto_publish=bool(user.auto_publish),
+        response_instructions=user.response_instructions,
     )
 
 
@@ -68,6 +74,10 @@ async def update_me(
         current_user.language = body.language
     if body.onboarding_done is not None:
         current_user.onboarding_done = body.onboarding_done
+    if body.auto_publish is not None:
+        current_user.auto_publish = body.auto_publish
+    if body.response_instructions is not None:
+        current_user.response_instructions = body.response_instructions
 
     await db.commit()
     await db.refresh(current_user)

@@ -47,7 +47,25 @@ async def generate_response(
     await check_usage_limit(current_user, "ai_generate", db)
 
     tone = body.tone or current_user.tone_preference or "warm"
-    response = await generate_and_save(body.review_id, db, tone=tone)
+    extra = current_user.response_instructions or ""
+    response = await generate_and_save(body.review_id, db, tone=tone, extra_instructions=extra)
+
+    # Auto-publish if user has it enabled and has a Google token
+    if current_user.auto_publish and current_user.access_token:
+        from datetime import datetime, timezone
+        from app.services.gmb_service import GMBService
+        review = await db.get(Review, body.review_id)
+        location = await db.get(Location, review.location_id)
+        gmb = GMBService(current_user.access_token)
+        published = await gmb.publish_response(
+            gmb_location_id=location.gmb_location_id,
+            review_id=review.gmb_review_id,
+            response_text=response.ai_draft,
+        )
+        if published:
+            response.published_at = datetime.now(timezone.utc)
+            review.status = "responded"
+
     return response
 
 

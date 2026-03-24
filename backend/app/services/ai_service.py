@@ -14,6 +14,7 @@ async def generate_and_save(
     review_id: uuid.UUID,
     db: AsyncSession,
     tone: str = "warm",
+    extra_instructions: str = "",
 ) -> Response:
     """Generate an AI response for a review and save it as a draft."""
     review = await db.get(Review, review_id)
@@ -29,6 +30,7 @@ async def generate_and_save(
         business_name=business_name,
         rating=review.rating,
         tone=tone,
+        extra_instructions=extra_instructions,
     )
 
     ai_text = await provider.generate_response(context)

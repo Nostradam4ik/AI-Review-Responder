@@ -1,0 +1,23 @@
+"""add auto_publish and response_instructions to users
+
+Revision ID: 006
+Revises: 005
+Create Date: 2026-03-24
+"""
+from alembic import op
+import sqlalchemy as sa
+
+revision = "006"
+down_revision = "005"
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+    op.add_column("users", sa.Column("auto_publish", sa.Boolean(), nullable=False, server_default="false"))
+    op.add_column("users", sa.Column("response_instructions", sa.Text(), nullable=True))
+
+
+def downgrade() -> None:
+    op.drop_column("users", "response_instructions")
+    op.drop_column("users", "auto_publish")

@@ -1,4 +1,9 @@
+import csv
+import io
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -150,17 +155,84 @@ async def seed_mock(db: AsyncSession = Depends(get_db)):
     return result
 
 
+def _build_review_query(location_ids, status=None, location_id=None, date_from=None, date_to=None):
+    query = select(Review).where(Review.location_id.in_(location_ids))
+    if status:
+        query = query.where(Review.status == status)
+    if location_id:
+        query = query.where(Review.location_id == location_id)
+    if date_from:
+        query = query.where(Review.review_date >= date_from)
+    if date_to:
+        query = query.where(Review.review_date <= date_to)
+    return query
+
+
+@router.get("/export/csv")
+async def export_reviews_csv(
+    status: str | None = Query(None),
+    date_from: datetime | None = Query(None),
+    date_to: datetime | None = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Export reviews as a CSV file."""
+    from app.models.response import Response as ReviewResponse
+    locs_result = await db.execute(
+        select(Location).where(Location.user_id == current_user.id)
+    )
+    locations = {loc.id: loc for loc in locs_result.scalars().all()}
+    if not locations:
+        return StreamingResponse(io.StringIO(""), media_type="text/csv")
+
+    query = _build_review_query(list(locations.keys()), status=status, date_from=date_from, date_to=date_to)
+    query = query.order_by(Review.review_date.desc())
+    result = await db.execute(query)
+    reviews = result.scalars().all()
+
+    # Fetch responses for all reviews in one query
+    review_ids = [r.id for r in reviews]
+    resp_result = await db.execute(
+        select(ReviewResponse).where(ReviewResponse.review_id.in_(review_ids))
+    )
+    responses_by_review = {r.review_id: r for r in resp_result.scalars().all()}
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["date", "author", "rating", "review_text", "response_text", "status", "location"])
+    for r in reviews:
+        resp = responses_by_review.get(r.id)
+        resp_text = (resp.final_text or resp.ai_draft) if resp else ""
+        writer.writerow([
+            r.review_date.strftime("%Y-%m-%d") if r.review_date else "",
+            r.author_name or "",
+            r.rating,
+            r.comment or "",
+            resp_text,
+            r.status,
+            locations.get(r.location_id, type("L", (), {"name": ""})()).name,
+        ])
+
+    buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=reviews.csv"},
+    )
+
+
 @router.get("/")
 async def list_reviews(
     status: str | None = Query(None, description="Filter by status: pending/responded/ignored"),
     location_id: str | None = Query(None),
+    date_from: datetime | None = Query(None),
+    date_to: datetime | None = Query(None),
     limit: int = Query(50, le=200),
     offset: int = Query(0),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List reviews for the current user, with optional filters."""
-    # Get user's location IDs
     locs_result = await db.execute(
         select(Location.id).where(Location.user_id == current_user.id)
     )
@@ -169,12 +241,8 @@ async def list_reviews(
     if not location_ids:
         return {"reviews": [], "total": 0}
 
-    query = select(Review).where(Review.location_id.in_(location_ids))
-
-    if status:
-        query = query.where(Review.status == status)
-    if location_id:
-        query = query.where(Review.location_id == location_id)
+    query = _build_review_query(location_ids, status=status, location_id=location_id,
+                                date_from=date_from, date_to=date_to)
 
     # Count total
     count_result = await db.execute(

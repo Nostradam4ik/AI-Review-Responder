@@ -9,6 +9,7 @@ class ReviewContext:
     rating: int
     tone: str = "warm"       # formal / warm / casual
     language: str = "auto"   # auto-detect from review
+    extra_instructions: str = ""  # custom instructions from user settings
 
 
 class LLMProvider(ABC):

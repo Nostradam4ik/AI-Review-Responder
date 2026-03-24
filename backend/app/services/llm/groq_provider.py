@@ -27,6 +27,8 @@ class GroqProvider(LLMProvider):
             "- For 1-2 star reviews: empathize and offer solution\n"
             "- For 4-5 star reviews: be grateful and reinforce positives"
         )
+        if context.extra_instructions:
+            system_prompt += f"\n\nADDITIONAL INSTRUCTIONS:\n{context.extra_instructions}"
 
         response = await self.client.chat.completions.create(
             model="llama-3.3-70b-versatile",

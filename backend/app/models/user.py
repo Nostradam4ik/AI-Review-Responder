@@ -31,5 +31,9 @@ class User(Base):
     # Telegram per-user
     telegram_chat_id: Mapped[str | None] = mapped_column(String(64))
 
+    # AI behaviour
+    auto_publish: Mapped[bool] = mapped_column(Boolean, default=False)
+    response_instructions: Mapped[str | None] = mapped_column(Text)
+
     locations: Mapped[list["Location"]] = relationship("Location", back_populates="user", cascade="all, delete-orphan")
     subscription: Mapped["Subscription | None"] = relationship("Subscription", back_populates="user", uselist=False)

@@ -55,11 +55,32 @@ export const locationsApi = {
 
 // --- Reviews ---
 export const reviewsApi = {
-  list: (params?: { status?: string; location_id?: string; limit?: number; offset?: number }) =>
+  list: (params?: { status?: string; location_id?: string; limit?: number; offset?: number; date_from?: string; date_to?: string }) =>
     api.get<ReviewList>("/reviews/", { params }).then((r) => r.data),
   sync: (location_id?: string) =>
     api.post("/reviews/sync", null, { params: { location_id } }).then((r) => r.data),
   seedDemo: () => api.post("/reviews/seed-demo").then((r) => r.data),
+  exportCsv: (params?: { status?: string; date_from?: string; date_to?: string }) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("air_token") : "";
+    const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set("status", params.status);
+    if (params?.date_from) qs.set("date_from", params.date_from);
+    if (params?.date_to) qs.set("date_to", params.date_to);
+    const url = `${base}/reviews/export/csv${qs.toString() ? "?" + qs.toString() : ""}`;
+    const a = document.createElement("a");
+    a.href = url;
+    // Can't set auth header via anchor — use fetch + blob instead
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.blob())
+      .then((blob) => {
+        const blobUrl = URL.createObjectURL(blob);
+        a.href = blobUrl;
+        a.download = "reviews.csv";
+        a.click();
+        URL.revokeObjectURL(blobUrl);
+      });
+  },
   testTelegram: () =>
     fetch("/api/test-telegram", {
       method: "POST",
@@ -89,7 +110,7 @@ const _token = () =>
 
 export const usersApi = {
   me: () => api.get("/users/me").then((r) => r.data),
-  update: (data: { business_name?: string; tone_preference?: string; language?: string; onboarding_done?: boolean }) =>
+  update: (data: { business_name?: string; tone_preference?: string; language?: string; onboarding_done?: boolean; auto_publish?: boolean; response_instructions?: string }) =>
     api.patch("/users/me", data).then((r) => r.data),
   changePassword: (current_password: string, new_password: string) =>
     api.post("/users/me/change-password", { current_password, new_password }).then((r) => r.data),

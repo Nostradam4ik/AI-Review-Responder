@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { locationsApi, usersApi } from "@/lib/api";
 import type { Location } from "@/types";
 import { useTranslations } from "next-intl";
-import { RefreshCw, CheckCircle2, MapPin, Save, KeyRound, Bot, ExternalLink, Unlink } from "lucide-react";
+import { RefreshCw, CheckCircle2, MapPin, Save, KeyRound, Bot, ExternalLink, Unlink, Zap, FileText } from "lucide-react";
 
 const BOT_USERNAME = "ReviewAIresponderbot";
 
@@ -46,6 +46,12 @@ export default function SettingsPage() {
   const [telegramConnected, setTelegramConnected] = useState(false);
   const [telegramDisconnecting, setTelegramDisconnecting] = useState(false);
 
+  // AI Behavior
+  const [autoPublish, setAutoPublish] = useState(false);
+  const [responseInstructions, setResponseInstructions] = useState("");
+  const [aiSaving, setAiSaving] = useState(false);
+  const [aiMsg, setAiMsg] = useState("");
+
   // Password
   const [hasPassword, setHasPassword] = useState(false);
   const [currentPw, setCurrentPw] = useState("");
@@ -62,6 +68,8 @@ export default function SettingsPage() {
       setLanguage(u.language || "auto");
       setHasPassword(!!u.has_password);
       setTelegramConnected(!!u.telegram_connected);
+      setAutoPublish(!!u.auto_publish);
+      setResponseInstructions(u.response_instructions || "");
     }).catch(console.error);
   }, []);
 
@@ -91,6 +99,21 @@ export default function SettingsPage() {
       setProfileMsg("Failed to save.");
     } finally {
       setProfileSaving(false);
+    }
+  };
+
+  const handleAiSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAiSaving(true);
+    setAiMsg("");
+    try {
+      await usersApi.update({ auto_publish: autoPublish, response_instructions: responseInstructions });
+      setAiMsg("Saved!");
+      setTimeout(() => setAiMsg(""), 2000);
+    } catch {
+      setAiMsg("Failed to save.");
+    } finally {
+      setAiSaving(false);
     }
   };
 
@@ -192,6 +215,75 @@ export default function SettingsPage() {
               <span className={`text-xs flex items-center gap-1 ${profileMsg === "Saved!" ? "text-emerald-400" : "text-red-400"}`}>
                 {profileMsg === "Saved!" && <CheckCircle2 className="w-3.5 h-3.5" />}
                 {profileMsg}
+              </span>
+            )}
+          </div>
+        </form>
+      </div>
+
+      {/* AI Responses */}
+      <div className={sectionCls}>
+        <div className="flex items-center gap-2">
+          <Zap className="w-4 h-4 text-slate-400" />
+          <h2 className="text-sm font-semibold text-white uppercase tracking-wider">AI Responses</h2>
+        </div>
+        <form onSubmit={handleAiSave} className="space-y-5">
+          {/* Auto-publish toggle */}
+          <div className="flex items-start justify-between gap-4 p-4 bg-[#0A0A0F] rounded-lg border border-[#2A2A3E]">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-white">Auto-publish responses</p>
+              <p className="text-xs text-slate-500">
+                When enabled, AI responses are published to Google immediately after generation — no manual confirmation needed.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={autoPublish}
+              onClick={() => setAutoPublish((v) => !v)}
+              className={`relative shrink-0 w-10 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-[#0A0A0F] ${
+                autoPublish ? "bg-indigo-600" : "bg-[#2A2A3E]"
+              }`}
+            >
+              <span
+                className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${
+                  autoPublish ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Response instructions */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <FileText className="w-3.5 h-3.5 text-slate-400" />
+              <label className="text-xs font-medium text-slate-400">Custom response instructions</label>
+            </div>
+            <textarea
+              value={responseInstructions}
+              onChange={(e) => setResponseInstructions(e.target.value)}
+              placeholder="e.g. Always mention our loyalty program. Keep responses under 100 words. Sign off with 'The [Business] Team'."
+              rows={4}
+              className={inputCls + " resize-none"}
+            />
+            <p className="text-[11px] text-slate-600">
+              These instructions are appended to every AI prompt. Leave blank to use defaults.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="submit"
+              disabled={aiSaving}
+              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-all disabled:opacity-50 active:scale-95"
+            >
+              <Save className="w-3.5 h-3.5" />
+              {aiSaving ? t("saving") : t("saveChanges")}
+            </button>
+            {aiMsg && (
+              <span className={`text-xs flex items-center gap-1 ${aiMsg === "Saved!" ? "text-emerald-400" : "text-red-400"}`}>
+                {aiMsg === "Saved!" && <CheckCircle2 className="w-3.5 h-3.5" />}
+                {aiMsg}
               </span>
             )}
           </div>
