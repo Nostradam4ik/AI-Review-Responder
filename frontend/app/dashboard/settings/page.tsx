@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { locationsApi, usersApi, reviewsApi } from "@/lib/api";
+import { locationsApi, usersApi } from "@/lib/api";
 import type { Location } from "@/types";
 import { useTranslations } from "next-intl";
-import { RefreshCw, CheckCircle2, MapPin, Save, KeyRound, Send } from "lucide-react";
+import { RefreshCw, CheckCircle2, MapPin, Save, KeyRound, Bot, ExternalLink, Unlink } from "lucide-react";
+
+const BOT_USERNAME = "ReviewAIresponderbot";
 
 const TONES = ["formal", "warm", "casual"] as const;
 const LANGUAGES = [
@@ -34,14 +36,15 @@ export default function SettingsPage() {
 
   // Profile
   const [businessName, setBusinessName] = useState("");
+  const [userId, setUserId] = useState("");
   const [tone, setTone] = useState("warm");
   const [language, setLanguage] = useState("auto");
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMsg, setProfileMsg] = useState("");
 
   // Telegram
-  const [telegramTesting, setTelegramTesting] = useState(false);
-  const [telegramMsg, setTelegramMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [telegramConnected, setTelegramConnected] = useState(false);
+  const [telegramDisconnecting, setTelegramDisconnecting] = useState(false);
 
   // Password
   const [hasPassword, setHasPassword] = useState(false);
@@ -53,10 +56,12 @@ export default function SettingsPage() {
   useEffect(() => {
     locationsApi.list().then(setLocations).catch(console.error);
     usersApi.me().then((u) => {
+      setUserId(u.id || "");
       setBusinessName(u.business_name || "");
       setTone(u.tone_preference || "warm");
       setLanguage(u.language || "auto");
-      setHasPassword(!!u.password_hash);
+      setHasPassword(!!u.has_password);
+      setTelegramConnected(!!u.telegram_connected);
     }).catch(console.error);
   }, []);
 
@@ -105,6 +110,20 @@ export default function SettingsPage() {
       setPwSaving(false);
     }
   };
+
+  const handleTelegramDisconnect = async () => {
+    setTelegramDisconnecting(true);
+    try {
+      await usersApi.telegramDisconnect();
+      setTelegramConnected(false);
+    } catch {
+      // ignore
+    } finally {
+      setTelegramDisconnecting(false);
+    }
+  };
+
+  const telegramLink = `https://t.me/${BOT_USERNAME}?start=${userId}`;
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -232,39 +251,48 @@ export default function SettingsPage() {
       {/* Telegram */}
       <div className={sectionCls}>
         <div className="flex items-center gap-2">
-          <Send className="w-4 h-4 text-slate-400" />
+          <Bot className="w-4 h-4 text-slate-400" />
           <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Telegram Notifications</h2>
         </div>
-        <p className="text-xs text-slate-500">
-          Receive instant alerts when new reviews come in. Configure <code className="text-slate-400">TELEGRAM_BOT_TOKEN</code> and <code className="text-slate-400">TELEGRAM_CHAT_ID</code> in your server environment.
-        </p>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={async () => {
-              setTelegramTesting(true);
-              setTelegramMsg(null);
-              try {
-                const res = await reviewsApi.testTelegram();
-                setTelegramMsg({ text: res.message, ok: res.ok });
-              } catch {
-                setTelegramMsg({ text: "Failed to send test message.", ok: false });
-              } finally {
-                setTelegramTesting(false);
-              }
-            }}
-            disabled={telegramTesting}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-all disabled:opacity-50 active:scale-95"
-          >
-            <Send className="w-3.5 h-3.5" />
-            {telegramTesting ? "Sending..." : "Send test message"}
-          </button>
-          {telegramMsg && (
-            <span className={`text-xs flex items-center gap-1 ${telegramMsg.ok ? "text-emerald-400" : "text-red-400"}`}>
-              {telegramMsg.ok && <CheckCircle2 className="w-3.5 h-3.5" />}
-              {telegramMsg.text}
-            </span>
-          )}
-        </div>
+
+        {telegramConnected ? (
+          <div className="flex items-center justify-between gap-4 p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
+            <div className="flex items-center gap-2 text-emerald-400">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold">Connected</p>
+                <p className="text-xs text-emerald-500/70">You&apos;ll receive review alerts in Telegram</p>
+              </div>
+            </div>
+            <button
+              onClick={handleTelegramDisconnect}
+              disabled={telegramDisconnecting}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-400 hover:text-red-400 border border-[#2A2A3E] hover:border-red-500/30 rounded-lg transition-all disabled:opacity-50"
+            >
+              <Unlink className="w-3 h-3" />
+              {telegramDisconnecting ? "Disconnecting…" : "Disconnect"}
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-xs text-slate-500">
+              Get instant alerts in Telegram when new reviews arrive. No configuration needed — just click and connect.
+            </p>
+            <a
+              href={telegramLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#2AABEE] hover:bg-[#229ED9] text-white rounded-lg text-sm font-medium transition-all active:scale-95 w-fit"
+            >
+              <Bot className="w-3.5 h-3.5" />
+              Connect Telegram
+              <ExternalLink className="w-3 h-3 opacity-70" />
+            </a>
+            <p className="text-[11px] text-slate-600">
+              Opens @{BOT_USERNAME} — press Start to link your account
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Locations */}

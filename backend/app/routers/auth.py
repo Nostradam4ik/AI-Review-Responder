@@ -2,7 +2,7 @@ from datetime import datetime, timezone, timedelta
 from urllib.parse import urlencode
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
@@ -289,3 +289,52 @@ async def reset_password(body: ResetPasswordRequest, db: AsyncSession = Depends(
     user.password_hash = hash_password(body.new_password)
     await db.commit()
     return {"message": "Password updated successfully"}
+
+
+# ── Telegram webhook ─────────────────────────────────────────────────────────
+
+
+@router.post("/telegram/webhook")
+async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db)):
+    """Handle incoming Telegram updates.
+
+    When a user opens the deep link t.me/<bot>?start=<user_id>,
+    Telegram sends a message /start <user_id> to this webhook.
+    We use the payload to link the Telegram chat_id to the user account.
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        return {"ok": True}
+
+    message = data.get("message") or data.get("edited_message") or {}
+    text: str = message.get("text", "")
+    chat = message.get("chat", {})
+    chat_id = str(chat.get("id", ""))
+    first_name = chat.get("first_name", "")
+
+    if not text.startswith("/start") or not chat_id:
+        return {"ok": True}
+
+    parts = text.split(maxsplit=1)
+    payload = parts[1].strip() if len(parts) > 1 else ""
+
+    if payload:
+        # payload is the user_id UUID
+        result = await db.execute(select(User).where(User.id == payload))
+        user = result.scalar_one_or_none()
+        if user and not user.telegram_chat_id:
+            user.telegram_chat_id = chat_id
+            await db.commit()
+
+            # Send confirmation to user
+            from app.services.notification import send_telegram
+            name = user.business_name or user.email
+            await send_telegram(
+                f"✅ <b>Telegram connected!</b>\n\n"
+                f"Account: {name}\n"
+                f"You'll receive review notifications here.",
+                chat_id=chat_id,
+            )
+
+    return {"ok": True}

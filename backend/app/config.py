@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str
     TELEGRAM_BOT_TOKEN: str = ""
     TELEGRAM_CHAT_ID: str = ""
+    TELEGRAM_BOT_USERNAME: str = "ReviewAIresponderbot"
     SECRET_KEY: str
     LLM_PROVIDER: str = "groq"
     FRONTEND_URL: str = "http://localhost:3000"

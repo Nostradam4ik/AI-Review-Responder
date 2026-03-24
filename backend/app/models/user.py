@@ -28,5 +28,8 @@ class User(Base):
     email_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     onboarding_done: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    # Telegram per-user
+    telegram_chat_id: Mapped[str | None] = mapped_column(String(64))
+
     locations: Mapped[list["Location"]] = relationship("Location", back_populates="user", cascade="all, delete-orphan")
     subscription: Mapped["Subscription | None"] = relationship("Subscription", back_populates="user", uselist=False)

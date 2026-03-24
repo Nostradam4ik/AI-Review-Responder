@@ -19,6 +19,8 @@ class UserProfileResponse(BaseModel):
     language: str
     email_verified: bool
     onboarding_done: bool
+    has_password: bool
+    telegram_connected: bool
 
 
 class UpdateProfileRequest(BaseModel):
@@ -33,17 +35,23 @@ class ChangePasswordRequest(BaseModel):
     new_password: str
 
 
+def _profile(user: User) -> UserProfileResponse:
+    return UserProfileResponse(
+        id=str(user.id),
+        email=user.email,
+        business_name=user.business_name,
+        tone_preference=user.tone_preference,
+        language=user.language,
+        email_verified=user.email_verified,
+        onboarding_done=user.onboarding_done,
+        has_password=bool(user.password_hash),
+        telegram_connected=bool(user.telegram_chat_id),
+    )
+
+
 @router.get("/me", response_model=UserProfileResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
-    return UserProfileResponse(
-        id=str(current_user.id),
-        email=current_user.email,
-        business_name=current_user.business_name,
-        tone_preference=current_user.tone_preference,
-        language=current_user.language,
-        email_verified=current_user.email_verified,
-        onboarding_done=current_user.onboarding_done,
-    )
+    return _profile(current_user)
 
 
 @router.patch("/me", response_model=UserProfileResponse)
@@ -63,16 +71,7 @@ async def update_me(
 
     await db.commit()
     await db.refresh(current_user)
-
-    return UserProfileResponse(
-        id=str(current_user.id),
-        email=current_user.email,
-        business_name=current_user.business_name,
-        tone_preference=current_user.tone_preference,
-        language=current_user.language,
-        email_verified=current_user.email_verified,
-        onboarding_done=current_user.onboarding_done,
-    )
+    return _profile(current_user)
 
 
 @router.post("/me/change-password")
@@ -90,3 +89,18 @@ async def change_password(
     current_user.password_hash = hash_password(body.new_password)
     await db.commit()
     return {"message": "Password updated successfully"}
+
+
+@router.get("/me/telegram-status")
+async def telegram_status(current_user: User = Depends(get_current_user)):
+    return {"connected": bool(current_user.telegram_chat_id)}
+
+
+@router.delete("/me/telegram")
+async def disconnect_telegram(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    current_user.telegram_chat_id = None
+    await db.commit()
+    return {"disconnected": True}

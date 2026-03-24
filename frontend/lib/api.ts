@@ -84,12 +84,21 @@ export const responsesApi = {
 };
 
 // --- Users ---
+const _token = () =>
+  typeof window !== "undefined" ? (localStorage.getItem("air_token") || "") : "";
+
 export const usersApi = {
   me: () => api.get("/users/me").then((r) => r.data),
   update: (data: { business_name?: string; tone_preference?: string; language?: string; onboarding_done?: boolean }) =>
     api.patch("/users/me", data).then((r) => r.data),
   changePassword: (current_password: string, new_password: string) =>
     api.post("/users/me/change-password", { current_password, new_password }).then((r) => r.data),
+  telegramStatus: () =>
+    fetch("/api/telegram-status", {
+      headers: { Authorization: `Bearer ${_token()}` },
+    }).then((r) => r.json()) as Promise<{ connected: boolean }>,
+  telegramDisconnect: () =>
+    api.delete("/users/me/telegram").then((r) => r.data),
 };
 
 // --- Billing ---
