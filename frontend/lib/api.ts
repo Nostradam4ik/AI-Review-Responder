@@ -36,12 +36,17 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 → logout
+// Handle 401 → logout, 402 → redirect to billing
 api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
       logout();
+    } else if (err.response?.status === 402) {
+      const detail = err.response?.data?.detail || "upgrade_required";
+      if (typeof window !== "undefined") {
+        window.location.href = `/dashboard/billing?reason=${detail}`;
+      }
     }
     return Promise.reject(err);
   }

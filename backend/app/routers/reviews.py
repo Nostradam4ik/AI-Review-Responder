@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, require_plan_feature
 from app.database import get_db
 from app.models.location import Location
 from app.models.review import Review
@@ -173,7 +173,7 @@ async def export_reviews_csv(
     status: str | None = Query(None),
     date_from: datetime | None = Query(None),
     date_to: datetime | None = Query(None),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_plan_feature("export_csv")),
     db: AsyncSession = Depends(get_db),
 ):
     """Export reviews as a CSV file."""

@@ -3,35 +3,36 @@
 import { useEffect, useState } from "react";
 import { billingApi, BillingStatus } from "@/lib/api";
 import { CheckCircle2, Zap, Building2, Rocket } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 
 const PLANS = [
   {
     id: "starter",
     name: "Starter",
-    price: 29,
+    price: 19,
     locations: 1,
-    responses: 50,
+    responses: 100,
     icon: Zap,
-    features: ["AI response generation", "Google Business sync", "Email support"],
+    features: ["AI response generation", "Google Business sync", "Telegram alerts", "Email support"],
   },
   {
     id: "pro",
     name: "Pro",
-    price: 59,
+    price: 39,
     locations: 3,
-    responses: 200,
+    responses: 0,
     icon: Rocket,
-    features: ["Everything in Starter", "Auto-respond scheduler", "Telegram notifications", "Analytics", "CSV export"],
+    features: ["Everything in Starter", "Unlimited AI responses", "CSV export", "Auto-publish", "Custom instructions", "Full analytics", "Priority support"],
     popular: true,
   },
   {
     id: "agency",
     name: "Agency",
-    price: 149,
+    price: 79,
     locations: 10,
     responses: 0,
     icon: Building2,
-    features: ["Everything in Pro", "Unlimited AI responses", "White-label", "Priority support"],
+    features: ["Everything in Pro", "10 locations", "White-label", "Dedicated support"],
   },
 ];
 
@@ -49,6 +50,8 @@ function daysUntil(dateStr: string): number {
 }
 
 export default function BillingPage() {
+  const searchParams = useSearchParams();
+  const expiredReason = searchParams.get("reason");
   const [status, setStatus] = useState<BillingStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
@@ -107,6 +110,16 @@ export default function BillingPage() {
       {error && (
         <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 px-4 py-3 rounded-xl">
           {error}
+        </div>
+      )}
+      {expiredReason === "trial_expired" && (
+        <div className="flex items-center gap-2 text-sm text-amber-400 bg-amber-500/10 border border-amber-500/20 px-4 py-3 rounded-xl">
+          Your free trial has ended. Choose a plan below to continue using all features.
+        </div>
+      )}
+      {expiredReason === "feature_not_available" && (
+        <div className="flex items-center gap-2 text-sm text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-4 py-3 rounded-xl">
+          This feature requires a Pro or Agency plan. Upgrade below to unlock it.
         </div>
       )}
 

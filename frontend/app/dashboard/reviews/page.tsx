@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { reviewsApi, usersApi } from "@/lib/api";
+import { reviewsApi, usersApi, billingApi } from "@/lib/api";
 import type { Review, ReviewStatus } from "@/types";
 import ReviewCard from "@/components/ReviewCard";
 import { useTranslations } from "next-intl";
-import { RefreshCw, MessageSquare, Sparkles, Download, Search, X } from "lucide-react";
+import { RefreshCw, MessageSquare, Sparkles, Download, Search, X, Lock } from "lucide-react";
+import UpgradeModal from "@/components/UpgradeModal";
 
 type DateRange = "all" | "today" | "week" | "month" | "3months";
 
@@ -46,6 +47,8 @@ export default function ReviewsPage() {
   const [hasGoogleAccount, setHasGoogleAccount] = useState(false);
   const [seedingDemo, setSeedingDemo] = useState(false);
   const [demoMsg, setDemoMsg] = useState("");
+  const [canCsvExport, setCanCsvExport] = useState(true);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const STATUS_FILTERS: { label: string; value: ReviewStatus | "all" }[] = [
     { label: t("all"), value: "all" },
@@ -74,6 +77,14 @@ export default function ReviewsPage() {
 
   useEffect(() => {
     usersApi.me().then((me) => setHasGoogleAccount(!!me.google_id)).catch(() => {});
+    billingApi.status().then((s) => {
+      const isTrial = s.subscription?.status === "trialing";
+      const trialActive = isTrial && s.subscription?.trial_end
+        ? new Date(s.subscription.trial_end) > new Date()
+        : false;
+      const hasCsv = s.plan?.features?.export_csv === true;
+      setCanCsvExport(trialActive || hasCsv);
+    }).catch(() => {});
     fetchReviews();
   }, [fetchReviews]);
 
@@ -102,6 +113,10 @@ export default function ReviewsPage() {
   };
 
   const handleExportCsv = () => {
+    if (!canCsvExport) {
+      setShowUpgradeModal(true);
+      return;
+    }
     const bounds = getDateBounds(dateRange);
     reviewsApi.exportCsv({ status: status === "all" ? undefined : status, ...bounds });
   };
@@ -119,10 +134,14 @@ export default function ReviewsPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={handleExportCsv}
-            title="Export CSV"
+            title={canCsvExport ? "Export CSV" : "Pro feature — upgrade to export"}
             className="flex items-center gap-1.5 px-3 py-2 border border-[#2A2A3E] hover:border-indigo-500/40 text-slate-400 hover:text-white rounded-lg text-xs font-medium transition-all active:scale-95"
           >
-            <Download className="w-3.5 h-3.5" />
+            {canCsvExport ? (
+              <Download className="w-3.5 h-3.5" />
+            ) : (
+              <Lock className="w-3.5 h-3.5" />
+            )}
             CSV
           </button>
           {hasGoogleAccount && (
@@ -232,6 +251,9 @@ export default function ReviewsPage() {
             />
           ))}
         </div>
+      )}
+      {showUpgradeModal && (
+        <UpgradeModal feature="CSV export" onClose={() => setShowUpgradeModal(false)} />
       )}
     </div>
   );

@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { locationsApi, usersApi } from "@/lib/api";
+import { locationsApi, usersApi, billingApi } from "@/lib/api";
 import type { Location } from "@/types";
 import { useTranslations } from "next-intl";
-import { RefreshCw, CheckCircle2, MapPin, Save, KeyRound, Bot, ExternalLink, Unlink, Zap, FileText } from "lucide-react";
+import { RefreshCw, CheckCircle2, MapPin, Save, KeyRound, Bot, ExternalLink, Unlink, Zap, FileText, Lock } from "lucide-react";
+import UpgradeModal from "@/components/UpgradeModal";
 
 const BOT_USERNAME = "ReviewAIresponderbot";
 
@@ -51,6 +52,8 @@ export default function SettingsPage() {
   const [responseInstructions, setResponseInstructions] = useState("");
   const [aiSaving, setAiSaving] = useState(false);
   const [aiMsg, setAiMsg] = useState("");
+  const [canProFeatures, setCanProFeatures] = useState(true);
+  const [showUpgradeModal, setShowUpgradeModal] = useState<string | null>(null);
 
   // Password
   const [hasPassword, setHasPassword] = useState(false);
@@ -71,6 +74,14 @@ export default function SettingsPage() {
       setAutoPublish(!!u.auto_publish);
       setResponseInstructions(u.response_instructions || "");
     }).catch(console.error);
+    billingApi.status().then((s) => {
+      const isTrial = s.subscription?.status === "trialing";
+      const trialActive = isTrial && s.subscription?.trial_end
+        ? new Date(s.subscription.trial_end) > new Date()
+        : false;
+      const hasPro = s.plan?.features?.auto_respond === true;
+      setCanProFeatures(trialActive || hasPro);
+    }).catch(() => {});
   }, []);
 
   const handleSyncLocations = async () => {
@@ -229,9 +240,19 @@ export default function SettingsPage() {
         </div>
         <form onSubmit={handleAiSave} className="space-y-5">
           {/* Auto-publish toggle */}
-          <div className="flex items-start justify-between gap-4 p-4 bg-[#0A0A0F] rounded-lg border border-[#2A2A3E]">
+          <div
+            className={`flex items-start justify-between gap-4 p-4 bg-[#0A0A0F] rounded-lg border border-[#2A2A3E] ${!canProFeatures ? "opacity-60" : ""}`}
+          >
             <div className="space-y-1">
-              <p className="text-sm font-medium text-white">Auto-publish responses</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm font-medium text-white">Auto-publish responses</p>
+                {!canProFeatures && (
+                  <span className="flex items-center gap-1 text-[10px] font-semibold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded-full">
+                    <Lock className="w-2.5 h-2.5" />
+                    Pro
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-slate-500">
                 When enabled, AI responses are published to Google immediately after generation — no manual confirmation needed.
               </p>
@@ -240,14 +261,17 @@ export default function SettingsPage() {
               type="button"
               role="switch"
               aria-checked={autoPublish}
-              onClick={() => setAutoPublish((v) => !v)}
+              onClick={() => {
+                if (!canProFeatures) { setShowUpgradeModal("Auto-publish"); return; }
+                setAutoPublish((v) => !v);
+              }}
               className={`relative shrink-0 w-10 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-[#0A0A0F] ${
-                autoPublish ? "bg-indigo-600" : "bg-[#2A2A3E]"
+                autoPublish && canProFeatures ? "bg-indigo-600" : "bg-[#2A2A3E]"
               }`}
             >
               <span
                 className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${
-                  autoPublish ? "translate-x-4" : "translate-x-0"
+                  autoPublish && canProFeatures ? "translate-x-4" : "translate-x-0"
                 }`}
               />
             </button>
@@ -258,14 +282,24 @@ export default function SettingsPage() {
             <div className="flex items-center gap-1.5">
               <FileText className="w-3.5 h-3.5 text-slate-400" />
               <label className="text-xs font-medium text-slate-400">Custom response instructions</label>
+              {!canProFeatures && (
+                <span className="flex items-center gap-1 text-[10px] font-semibold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded-full">
+                  <Lock className="w-2.5 h-2.5" />
+                  Pro
+                </span>
+              )}
             </div>
-            <textarea
-              value={responseInstructions}
-              onChange={(e) => setResponseInstructions(e.target.value)}
-              placeholder="e.g. Always mention our loyalty program. Keep responses under 100 words. Sign off with 'The [Business] Team'."
-              rows={4}
-              className={inputCls + " resize-none"}
-            />
+            <div className="relative">
+              <textarea
+                value={responseInstructions}
+                onChange={(e) => canProFeatures && setResponseInstructions(e.target.value)}
+                onClick={() => { if (!canProFeatures) setShowUpgradeModal("Custom instructions"); }}
+                placeholder="e.g. Always mention our loyalty program. Keep responses under 100 words. Sign off with 'The [Business] Team'."
+                rows={4}
+                readOnly={!canProFeatures}
+                className={inputCls + " resize-none" + (!canProFeatures ? " cursor-pointer opacity-60" : "")}
+              />
+            </div>
             <p className="text-[11px] text-slate-600">
               These instructions are appended to every AI prompt. Leave blank to use defaults.
             </p>
@@ -424,6 +458,9 @@ export default function SettingsPage() {
           </ul>
         )}
       </div>
+      {showUpgradeModal && (
+        <UpgradeModal feature={showUpgradeModal} onClose={() => setShowUpgradeModal(null)} />
+      )}
     </div>
   );
 }
