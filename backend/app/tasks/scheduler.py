@@ -69,7 +69,7 @@ async def _sync_user_reviews(user: User, db) -> None:
     if total_new > 0:
         avg_rating = total_rating / total_new
         business_name = user.business_name or user.email
-        await notify_new_reviews(business_name, total_new, avg_rating)
+        await notify_new_reviews(business_name, total_new, avg_rating, user=user)
         logger.info(
             "Notified %s of %d new review(s)", business_name, total_new
         )

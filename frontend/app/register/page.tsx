@@ -136,6 +136,12 @@ export default function RegisterPage() {
             Sign in
           </Link>
         </p>
+        <p className="text-center text-xs text-gray-400 dark:text-zinc-500 mt-1">
+          By registering you agree to our{" "}
+          <Link href="/terms" className="hover:underline">Terms of Service</Link>
+          {" "}and{" "}
+          <Link href="/privacy" className="hover:underline">Privacy Policy</Link>
+        </p>
       </div>
     </div>
   );

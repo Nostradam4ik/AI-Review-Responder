@@ -50,24 +50,24 @@ const PLANS = [
   {
     id: "starter",
     name: "Starter",
-    price: 29,
+    price: 19,
     desc: "For small businesses just getting started.",
-    features: ["1 Google Business location", "50 AI responses/month", "Google Business sync", "Email support"],
+    features: ["1 Google Business location", "100 AI responses/month", "Google Business sync", "Basic analytics", "Telegram alerts", "Email support"],
   },
   {
     id: "pro",
     name: "Pro",
-    price: 59,
+    price: 39,
     desc: "For growing businesses with more reviews.",
     popular: true,
-    features: ["3 locations", "200 AI responses/month", "Auto-respond scheduler", "Telegram alerts", "Analytics & CSV export"],
+    features: ["3 locations", "Unlimited AI responses", "CSV export", "Auto-publish", "Custom AI instructions", "Full analytics", "Priority support"],
   },
   {
     id: "agency",
     name: "Agency",
-    price: 149,
+    price: 79,
     desc: "For agencies managing multiple clients.",
-    features: ["10 locations", "Unlimited AI responses", "White-label ready", "Priority support"],
+    features: ["10 locations", "Unlimited AI responses", "White-label ready", "Dedicated support"],
   },
 ];
 
@@ -84,10 +84,10 @@ export default function LandingPage() {
             <span className="font-semibold text-white text-sm">AI Review Responder</span>
           </div>
           <div className="flex items-center gap-3">
-            <Link
-              href="/login"
-              className="text-sm text-slate-400 hover:text-white transition-colors"
-            >
+            <Link href="/pricing" className="text-sm text-slate-400 hover:text-white transition-colors">
+              Pricing
+            </Link>
+            <Link href="/login" className="text-sm text-slate-400 hover:text-white transition-colors">
               Sign in
             </Link>
             <Link
@@ -282,7 +282,9 @@ export default function LandingPage() {
           <div className="flex gap-5">
             <Link href="/login" className="hover:text-slate-400 transition-colors">Sign in</Link>
             <Link href="/register" className="hover:text-slate-400 transition-colors">Register</Link>
-            <a href="#pricing" className="hover:text-slate-400 transition-colors">Pricing</a>
+            <Link href="/pricing" className="hover:text-slate-400 transition-colors">Pricing</Link>
+            <Link href="/privacy" className="hover:text-slate-400 transition-colors">Privacy</Link>
+            <Link href="/terms" className="hover:text-slate-400 transition-colors">Terms</Link>
           </div>
         </div>
       </footer>
