@@ -22,9 +22,9 @@ PLANS = [
         "id": "starter",
         "name": "Starter",
         "stripe_price_id": "",
-        "price_eur": 29,
+        "price_eur": 19,
         "max_locations": 1,
-        "max_responses_per_month": 50,
+        "max_responses_per_month": 100,
         "features": json.dumps({
             "auto_respond": False,
             "telegram": True,
@@ -38,9 +38,9 @@ PLANS = [
         "id": "pro",
         "name": "Pro",
         "stripe_price_id": "",
-        "price_eur": 59,
+        "price_eur": 39,
         "max_locations": 3,
-        "max_responses_per_month": 200,
+        "max_responses_per_month": 0,
         "features": json.dumps({
             "auto_respond": True,
             "telegram": True,
@@ -54,7 +54,7 @@ PLANS = [
         "id": "agency",
         "name": "Agency",
         "stripe_price_id": "",
-        "price_eur": 149,
+        "price_eur": 79,
         "max_locations": 10,
         "max_responses_per_month": 0,
         "features": json.dumps({

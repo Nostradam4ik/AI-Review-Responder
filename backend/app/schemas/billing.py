@@ -38,3 +38,6 @@ class BillingStatusResponse(BaseModel):
     subscription: dict
     plan: dict | None
     usage: dict
+    is_trial: bool = False
+    trial_days_remaining: int | None = None
+    pro_features_available: bool = False

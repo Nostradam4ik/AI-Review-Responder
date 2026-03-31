@@ -38,10 +38,13 @@ async def check_usage_limit(user: User, action_type: str, db: AsyncSession) -> N
     Verify the user is allowed to perform action_type.
     Raises HTTPException(402/403/429) if not allowed.
     Logs the usage if allowed.
+
+    During active trial: all features are unlocked, no response limits.
+    After trial expires OR on paid plan: enforce plan limits and features.
     """
     sub = await _get_subscription(user, db)
 
-    # No subscription → treat as needing upgrade
+    # No subscription → needs upgrade
     if sub is None:
         raise HTTPException(
             status_code=402,
@@ -55,19 +58,31 @@ async def check_usage_limit(user: User, action_type: str, db: AsyncSession) -> N
             detail={"error": "subscription_required", "upgrade_url": "/dashboard/billing"},
         )
 
+    now = datetime.now(timezone.utc)
+
     # Trial expiry
-    if sub.status == "trialing" and sub.trial_end and datetime.now(timezone.utc) > sub.trial_end:
+    if sub.status == "trialing" and sub.trial_end and now > sub.trial_end:
         raise HTTPException(
             status_code=402,
             detail={"error": "trial_expired", "upgrade_url": "/dashboard/billing"},
         )
 
-    # Get plan
+    # Active trial → ALL features unlocked, no usage limits
+    if sub.status == "trialing":
+        log = UsageLog(
+            user_id=user.id,
+            action_type=action_type,
+            billing_period=now.strftime("%Y-%m"),
+        )
+        db.add(log)
+        await db.flush()
+        return
+
+    # Paid subscription — get plan
     plan_result = await db.execute(select(Plan).where(Plan.id == sub.plan_id))
     plan = plan_result.scalar_one_or_none()
 
     if plan is None:
-        # Unknown plan — allow (shouldn't happen)
         return
 
     # Monthly response limit (0 = unlimited)
@@ -107,7 +122,7 @@ async def check_usage_limit(user: User, action_type: str, db: AsyncSession) -> N
     log = UsageLog(
         user_id=user.id,
         action_type=action_type,
-        billing_period=datetime.now(timezone.utc).strftime("%Y-%m"),
+        billing_period=now.strftime("%Y-%m"),
     )
     db.add(log)
     await db.flush()

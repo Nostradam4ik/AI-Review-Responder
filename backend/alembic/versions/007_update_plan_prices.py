@@ -19,6 +19,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute("UPDATE plans SET price_eur=29, max_responses_per_month=50 WHERE id='starter'")
-    op.execute("UPDATE plans SET price_eur=59, max_responses_per_month=200 WHERE id='pro'")
-    op.execute("UPDATE plans SET price_eur=149 WHERE id='agency'")
+    # 002 now seeds with final prices — downgrade is a no-op
+    pass

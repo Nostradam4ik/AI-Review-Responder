@@ -3,6 +3,7 @@ Stripe billing service — checkout, portal, webhook handling.
 Uses stripe 7.x module-level API (stripe.api_key).
 """
 import asyncio
+import uuid
 from datetime import datetime, timezone
 
 import stripe
@@ -99,6 +100,9 @@ async def get_billing_status(user: User, db: AsyncSession) -> dict:
             "subscription": {"status": "none"},
             "plan": None,
             "usage": {"responses_this_month": 0, "responses_limit": 0},
+            "is_trial": False,
+            "trial_days_remaining": None,
+            "pro_features_available": False,
         }
 
     plan_result = await db.execute(select(Plan).where(Plan.id == sub.plan_id))
@@ -112,6 +116,18 @@ async def get_billing_status(user: User, db: AsyncSession) -> dict:
         )
     )
     responses_used = usage_result.scalar() or 0
+
+    now = datetime.now(timezone.utc)
+    is_trial = sub.status == "trialing"
+    trial_active = is_trial and sub.trial_end is not None and sub.trial_end > now
+    trial_days_remaining: int | None = None
+    if trial_active and sub.trial_end:
+        trial_days_remaining = max(0, (sub.trial_end - now).days)
+
+    # Pro features available if: active trial OR paid plan with pro/agency features
+    pro_features_available = trial_active or (
+        sub.status == "active" and plan is not None and plan.features.get("auto_respond", False)
+    )
 
     return {
         "subscription": {
@@ -132,6 +148,9 @@ async def get_billing_status(user: User, db: AsyncSession) -> dict:
             "responses_this_month": responses_used,
             "responses_limit": plan.max_responses_per_month if plan else 0,
         },
+        "is_trial": is_trial and trial_active,
+        "trial_days_remaining": trial_days_remaining,
+        "pro_features_available": pro_features_available,
     }
 
 
@@ -165,7 +184,11 @@ async def handle_webhook(payload: bytes, sig_header: str, db: AsyncSession) -> N
         period_start = datetime.fromtimestamp(stripe_sub["current_period_start"], tz=timezone.utc)
         period_end = datetime.fromtimestamp(stripe_sub["current_period_end"], tz=timezone.utc)
 
-        result = await db.execute(select(Subscription).where(Subscription.user_id == user_id))
+        try:
+            user_uuid = uuid.UUID(user_id)
+        except (ValueError, TypeError):
+            return
+        result = await db.execute(select(Subscription).where(Subscription.user_id == user_uuid))
         sub = result.scalar_one_or_none()
 
         if sub:
