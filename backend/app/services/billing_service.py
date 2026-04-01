@@ -201,7 +201,7 @@ async def handle_webhook(payload: bytes, sig_header: str, db: AsyncSession) -> N
             sub.trial_end = None
         else:
             db.add(Subscription(
-                user_id=user_id,
+                user_id=user_uuid,
                 plan_id=plan_id,
                 stripe_subscription_id=stripe_sub_id,
                 stripe_customer_id=customer_id,
