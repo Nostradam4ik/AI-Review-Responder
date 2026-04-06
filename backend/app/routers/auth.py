@@ -124,6 +124,7 @@ async def callback(
             status="trialing",
             trial_end=datetime.now(timezone.utc) + timedelta(days=7),
         ))
+        user.plan = "starter"
         await db.flush()
 
     # Issue our own JWT
@@ -209,6 +210,7 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
         status="trialing",
         trial_end=datetime.now(timezone.utc) + timedelta(days=7),
     ))
+    user.plan = "starter"
     await db.flush()
 
     if auto_verify:

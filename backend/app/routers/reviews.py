@@ -144,10 +144,9 @@ async def test_telegram(current_user: User = Depends(get_current_user)):
 
 @router.post("/seed-mock", status_code=201)
 async def seed_mock(db: AsyncSession = Depends(get_db)):
-    """Seed mock data for development/testing. Only works when DB host is localhost or postgres."""
+    """Seed mock data for development/testing. Only available in development environment."""
     from app.config import settings
-    db_url = settings.DATABASE_URL
-    if "localhost" not in db_url and "postgres" not in db_url:
+    if settings.ENVIRONMENT != "development":
         raise HTTPException(status_code=403, detail="Only available in development")
 
     from app.scripts.seed_mock_data import seed_mock_data

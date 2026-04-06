@@ -209,6 +209,9 @@ async def handle_webhook(payload: bytes, sig_header: str, db: AsyncSession) -> N
                 current_period_start=period_start,
                 current_period_end=period_end,
             ))
+        user = await db.get(User, user_uuid)
+        if user:
+            user.plan = plan_id
         await db.commit()
 
     elif event_type == "invoice.payment_succeeded":
@@ -236,6 +239,9 @@ async def handle_webhook(payload: bytes, sig_header: str, db: AsyncSession) -> N
         sub = result.scalar_one_or_none()
         if sub:
             sub.status = "past_due"
+            user = await db.get(User, sub.user_id)
+            if user:
+                user.plan = "free"
             await db.commit()
 
     elif event_type == "customer.subscription.deleted":
@@ -248,4 +254,7 @@ async def handle_webhook(payload: bytes, sig_header: str, db: AsyncSession) -> N
         sub = result.scalar_one_or_none()
         if sub:
             sub.status = "cancelled"
+            user = await db.get(User, sub.user_id)
+            if user:
+                user.plan = "free"
             await db.commit()

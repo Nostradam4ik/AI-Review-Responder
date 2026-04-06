@@ -26,13 +26,16 @@ async def sync_all_reviews() -> None:
         result = await db.execute(
             select(User).where(User.access_token.isnot(None))
         )
-        users = result.scalars().all()
+        user_ids = [u.id for u in result.scalars().all()]
 
-        for user in users:
-            try:
-                await _sync_user_reviews(user, db)
-            except Exception as e:
-                logger.error("Error syncing reviews for user %s: %s", user.id, e)
+    for user_id in user_ids:
+        try:
+            async with async_session() as db:
+                user = await db.get(User, user_id)
+                if user:
+                    await _sync_user_reviews(user, db)
+        except Exception as e:
+            logger.error("Error syncing reviews for user %s: %s", user_id, e)
 
     logger.info("Scheduled review sync complete.")
 

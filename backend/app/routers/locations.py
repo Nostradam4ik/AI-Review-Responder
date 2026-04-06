@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user
 from app.database import get_db
 from app.models.location import Location
+from app.models.plan import Plan
+from app.models.subscription import Subscription
 from app.models.user import User
 from app.services.gmb_service import get_gmb_service
 
@@ -49,6 +51,28 @@ async def sync_locations(
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"GMB API error: {str(e)}")
 
+    # Determine max_locations from the user's active plan (trial = unlimited)
+    count_result = await db.execute(
+        select(func.count()).where(
+            Location.user_id == current_user.id,
+            Location.is_active == True,  # noqa: E712
+        )
+    )
+    current_count = count_result.scalar() or 0
+
+    sub_result = await db.execute(
+        select(Subscription).where(Subscription.user_id == current_user.id)
+    )
+    sub = sub_result.scalar_one_or_none()
+
+    max_locations = 999  # unlimited for trial / no subscription
+
+    if sub and sub.status == "active":
+        plan_result = await db.execute(select(Plan).where(Plan.id == sub.plan_id))
+        plan = plan_result.scalar_one_or_none()
+        if plan:
+            max_locations = plan.features.get("max_locations", 1)
+
     synced = []
     for loc_data in gmb_locations:
         result = await db.execute(
@@ -57,6 +81,8 @@ async def sync_locations(
         existing = result.scalar_one_or_none()
 
         if existing is None:
+            if current_count >= max_locations:
+                raise HTTPException(status_code=402, detail="location_limit_reached")
             location = Location(
                 user_id=current_user.id,
                 gmb_location_id=loc_data["gmb_location_id"],
@@ -64,6 +90,7 @@ async def sync_locations(
                 address=loc_data["address"],
             )
             db.add(location)
+            current_count += 1
             synced.append(loc_data["name"])
         else:
             existing.name = loc_data["name"]
