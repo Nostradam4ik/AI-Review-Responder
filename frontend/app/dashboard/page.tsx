@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { reviewsApi, locationsApi, usersApi } from "@/lib/api";
+import { reviewsApi, locationsApi, usersApi, billingApi, type BillingStatus } from "@/lib/api";
 import type { ReviewList, Location } from "@/types";
 import StatsWidget from "@/components/StatsWidget";
 import ReviewCard from "@/components/ReviewCard";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { MessageSquare, Clock, Star, RefreshCw, AlertTriangle, Sparkles, TrendingUp } from "lucide-react";
+import { TrialBanner } from "@/components/TrialBanner";
 
 // Simple SVG sparkline chart (last 30 days by week buckets)
 function RatingSparkline({ reviews }: { reviews: { review_date?: string | null; rating: number }[] }) {
@@ -91,6 +92,7 @@ export default function DashboardPage() {
   const [allReviews, setAllReviews] = useState<{ review_date?: string | null; rating: number; status: string }[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
+  const [billing, setBilling] = useState<BillingStatus | null>(null);
   const [hasGoogleAccount, setHasGoogleAccount] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
@@ -98,6 +100,8 @@ export default function DashboardPage() {
   const [demoMsg, setDemoMsg] = useState("");
 
   useEffect(() => {
+    billingApi.status().then(setBilling).catch(() => {});
+
     Promise.all([
       reviewsApi.list({ limit: 10 }),
       reviewsApi.list({ limit: 200 }),
@@ -165,6 +169,9 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 max-w-5xl">
+      {billing?.is_trial && (billing.trial_days_remaining ?? 0) > 0 && (
+        <TrialBanner daysRemaining={billing.trial_days_remaining!} />
+      )}
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>

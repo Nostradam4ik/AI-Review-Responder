@@ -21,6 +21,7 @@ import {
   Moon,
   Menu,
   X,
+  BarChart2,
 } from "lucide-react";
 
 const LANGS: { code: Locale; label: string }[] = [
@@ -54,6 +55,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const navItems = [
     { href: "/dashboard", label: t("dashboard"), icon: LayoutDashboard, exact: true },
     { href: "/dashboard/reviews", label: t("reviews"), icon: MessageSquare, badge: pendingCount > 0 ? pendingCount : null },
+    { href: "/dashboard/analytics", label: "Analytics", icon: BarChart2 },
     { href: "/dashboard/settings", label: t("settings"), icon: Settings },
     { href: "/dashboard/billing", label: t("billing"), icon: CreditCard },
   ];

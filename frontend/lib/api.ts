@@ -21,6 +21,9 @@ export interface BillingStatus {
     responses_this_month: number;
     responses_limit: number;
   };
+  is_trial?: boolean;
+  trial_days_remaining?: number | null;
+  pro_features_available?: boolean;
 }
 
 const api = axios.create({
