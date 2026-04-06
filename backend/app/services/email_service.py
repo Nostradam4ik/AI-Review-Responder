@@ -69,3 +69,42 @@ async def send_reset_email(to_email: str, token: str) -> None:
         })
     except Exception as e:
         logger.warning("Failed to send reset email to %s: %s", to_email, e)
+
+
+async def send_payment_failed_email(to_email: str, plan_name: str) -> None:
+    """Notify user their payment failed and they lost access."""
+    if not settings.RESEND_API_KEY:
+        logger.info("RESEND_API_KEY not set — skipping payment failed email to %s", to_email)
+        return
+
+    _init_resend()
+    subject = "Payment failed — your subscription has been paused"
+    html = f"""
+    <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto;">
+        <h2 style="color: #a12c7b;">Payment failed</h2>
+        <p>Hi,</p>
+        <p>We couldn't process your payment for the <strong>{plan_name}</strong> plan.</p>
+        <p>Your account has been temporarily downgraded to the free tier.
+        To restore full access, please update your payment method.</p>
+        <p>
+            <a href="{settings.FRONTEND_URL}/dashboard/billing"
+               style="background:#01696f;color:white;padding:10px 20px;
+                      border-radius:6px;text-decoration:none;display:inline-block;">
+                Update payment method
+            </a>
+        </p>
+        <p style="color:#7a7974;font-size:13px;">
+            If you need help, reply to this email.
+        </p>
+    </div>
+    """
+
+    try:
+        resend.Emails.send({
+            "from": settings.FROM_EMAIL,
+            "to": [to_email],
+            "subject": subject,
+            "html": html,
+        })
+    except Exception as e:
+        logger.warning("Failed to send payment failed email to %s: %s", to_email, e)

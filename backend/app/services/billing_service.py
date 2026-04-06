@@ -3,6 +3,7 @@ Stripe billing service — checkout, portal, webhook handling.
 Uses stripe 7.x module-level API (stripe.api_key).
 """
 import asyncio
+import logging
 import uuid
 from datetime import datetime, timezone
 
@@ -10,6 +11,8 @@ import stripe
 from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from app.config import settings
 from app.models.plan import Plan
@@ -243,6 +246,23 @@ async def handle_webhook(payload: bytes, sig_header: str, db: AsyncSession) -> N
             if user:
                 user.plan = "free"
             await db.commit()
+            if user:
+                from app.services.email_service import send_payment_failed_email
+                from app.services.notification import send_telegram
+                plan_name = sub.plan_id.capitalize()
+                try:
+                    await send_payment_failed_email(user.email, plan_name)
+                    if user.telegram_chat_id:
+                        await send_telegram(
+                            f"⚠️ <b>Payment failed</b>\n\n"
+                            f"Your {plan_name} subscription payment could not be processed.\n"
+                            f"Your account has been downgraded to free.\n\n"
+                            f"👉 Update your payment method at: "
+                            f"{settings.FRONTEND_URL}/dashboard/billing",
+                            chat_id=user.telegram_chat_id,
+                        )
+                except Exception as e:
+                    logger.warning("Failed to send payment failure notification: %s", e)
 
     elif event_type == "customer.subscription.deleted":
         stripe_sub_id = data.get("id")
