@@ -10,6 +10,8 @@ TONE_INSTRUCTIONS = {
 
 
 class GroqProvider(LLMProvider):
+    MODEL = "llama-3.3-70b-versatile"
+
     def __init__(self, api_key: str):
         self.client = AsyncGroq(api_key=api_key)
 
@@ -31,7 +33,7 @@ class GroqProvider(LLMProvider):
             system_prompt += f"\n\nADDITIONAL INSTRUCTIONS:\n{context.extra_instructions}"
 
         response = await self.client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=self.MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"Review ({context.rating}/5 stars):\n{context.review_text}"},

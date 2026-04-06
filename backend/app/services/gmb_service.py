@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+import logging
+from datetime import datetime, timedelta, timezone
 
 import httpx
 from sqlalchemy import select
@@ -8,7 +9,55 @@ from app.models.location import Location
 from app.models.review import Review
 
 GMB_BASE_URL = "https://mybusinessbusinessinformation.googleapis.com/v1"
-GMB_REVIEWS_URL = "https://mybusiness.googleapis.com/v4"
+GMB_REVIEWS_URL = "https://mybusinessreviews.googleapis.com/v1"
+
+logger = logging.getLogger(__name__)
+
+
+async def refresh_google_token(user, db: AsyncSession) -> None:
+    """Refresh the user's Google access token if expired or within 5 minutes of expiry.
+
+    Updates user.access_token and user.token_expires_at and commits to DB.
+    Raises ValueError if refresh fails (caller should skip this user).
+    """
+    from app.config import settings
+
+    now = datetime.now(timezone.utc)
+    if user.token_expires_at and user.token_expires_at > now + timedelta(minutes=5):
+        return  # Still valid
+
+    if not user.refresh_token:
+        raise ValueError(f"No refresh token for user {user.id} — cannot refresh access token")
+
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "grant_type": "refresh_token",
+                "client_id": settings.GOOGLE_CLIENT_ID,
+                "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                "refresh_token": user.refresh_token,
+            },
+        )
+
+    if resp.status_code != 200:
+        raise ValueError(
+            f"Failed to refresh Google token for user {user.id}: "
+            f"{resp.status_code} {resp.text[:200]}"
+        )
+
+    data = resp.json()
+    user.access_token = data["access_token"]
+    expires_in = data.get("expires_in", 3600)
+    user.token_expires_at = now + timedelta(seconds=expires_in)
+    await db.commit()
+    logger.info("Refreshed Google token for user %s", user.id)
+
+
+async def get_gmb_service(user, db: AsyncSession) -> "GMBService":
+    """Return a GMBService with a valid access token, refreshing if needed."""
+    await refresh_google_token(user, db)
+    return GMBService(user.access_token)
 
 
 class GMBService:
@@ -18,7 +67,6 @@ class GMBService:
     async def get_locations(self) -> list[dict]:
         """Fetch all GMB business locations for the authenticated user."""
         async with httpx.AsyncClient() as client:
-            # First get accounts
             accounts_resp = await client.get(
                 "https://mybusinessaccountmanagement.googleapis.com/v1/accounts",
                 headers=self.headers,
@@ -67,7 +115,6 @@ class GMBService:
         for review_data in reviews_data:
             gmb_review_id = review_data["reviewId"]
 
-            # Check if already exists
             result = await db.execute(
                 select(Review).where(Review.gmb_review_id == gmb_review_id)
             )
@@ -75,14 +122,12 @@ class GMBService:
             if existing:
                 continue
 
-            # Parse rating
             rating_map = {
                 "ONE": 1, "TWO": 2, "THREE": 3, "FOUR": 4, "FIVE": 5
             }
             rating_str = review_data.get("starRating", "THREE")
             rating = rating_map.get(rating_str, 3)
 
-            # Parse date
             create_time = review_data.get("createTime")
             review_date = None
             if create_time:

@@ -54,7 +54,7 @@ async def generate_and_save(
         review_id=review_id,
         ai_draft=ai_text,
         tone_used=tone,
-        model_used="llama-3.3-70b-versatile",
+        model_used=provider.MODEL,
     )
     db.add(response)
     await db.flush()

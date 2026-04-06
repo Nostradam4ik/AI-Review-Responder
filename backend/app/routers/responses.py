@@ -14,7 +14,7 @@ from app.models.review import Review
 from app.models.user import User
 from app.schemas.response import ResponseCreate, ResponseEdit, ResponseRead
 from app.services.ai_service import generate_and_save
-from app.services.gmb_service import GMBService
+from app.services.gmb_service import get_gmb_service
 
 router = APIRouter(prefix="/responses", tags=["responses"])
 
@@ -52,19 +52,24 @@ async def generate_response(
 
     # Auto-publish if user has it enabled and has a Google token
     if current_user.auto_publish and current_user.access_token:
-        from datetime import datetime, timezone
-        from app.services.gmb_service import GMBService
-        review = await db.get(Review, body.review_id)
-        location = await db.get(Location, review.location_id)
-        gmb = GMBService(current_user.access_token)
-        published = await gmb.publish_response(
-            gmb_location_id=location.gmb_location_id,
-            review_id=review.gmb_review_id,
-            response_text=response.ai_draft,
-        )
-        if published:
-            response.published_at = datetime.now(timezone.utc)
-            review.status = "responded"
+        import logging as _logging
+        _logger = _logging.getLogger(__name__)
+        try:
+            await check_usage_limit(current_user, "ai_publish", db)
+            review = await db.get(Review, body.review_id)
+            location = await db.get(Location, review.location_id)
+            gmb = await get_gmb_service(current_user, db)
+            published = await gmb.publish_response(
+                gmb_location_id=location.gmb_location_id,
+                review_id=review.gmb_review_id,
+                response_text=response.ai_draft,
+            )
+            if published:
+                response.published_at = datetime.now(timezone.utc)
+                review.status = "responded"
+        except HTTPException as exc:
+            # Usage limit exceeded or trial expired — save draft but skip publish
+            _logger.warning("Auto-publish skipped for user %s: %s", current_user.id, exc.detail)
 
     return response
 

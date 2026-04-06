@@ -337,4 +337,6 @@ async def update_review_status(
         raise HTTPException(status_code=403, detail="Forbidden")
 
     review.status = status
+    await db.commit()
+    await db.refresh(review)
     return {"id": review_id, "status": status}

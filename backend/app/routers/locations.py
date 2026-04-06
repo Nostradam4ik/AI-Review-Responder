@@ -6,7 +6,7 @@ from app.core.dependencies import get_current_user
 from app.database import get_db
 from app.models.location import Location
 from app.models.user import User
-from app.services.gmb_service import GMBService
+from app.services.gmb_service import get_gmb_service
 
 router = APIRouter(prefix="/locations", tags=["locations"])
 
@@ -43,8 +43,8 @@ async def sync_locations(
         return {"synced": 0, "new": 0, "locations": [],
                 "message": "No Google account connected. Please sign in with Google to sync locations."}
 
-    gmb = GMBService(current_user.access_token)
     try:
+        gmb = await get_gmb_service(current_user, db)
         gmb_locations = await gmb.get_locations()
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"GMB API error: {str(e)}")

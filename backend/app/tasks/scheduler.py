@@ -6,7 +6,7 @@ from sqlalchemy import select
 from app.database import async_session
 from app.models.location import Location
 from app.models.user import User
-from app.services.gmb_service import GMBService
+from app.services.gmb_service import get_gmb_service
 from app.services.notification import notify_new_reviews
 
 logger = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ async def _sync_user_reviews(user: User, db) -> None:
     if not locations:
         return
 
-    gmb = GMBService(user.access_token)
+    gmb = await get_gmb_service(user, db)
     total_new = 0
     total_rating = 0.0
 
