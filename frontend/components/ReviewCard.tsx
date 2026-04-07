@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Review } from "@/types";
 import ResponseEditor from "./ResponseEditor";
+import { LockedButton } from "./LockedButton";
 import { useTranslations } from "next-intl";
 import { Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 
@@ -10,6 +11,7 @@ interface ReviewCardProps {
   review: Review;
   onStatusChange?: () => void;
   hasGoogleAccount?: boolean;
+  isTrialExpired?: boolean;
 }
 
 // Deterministic avatar color based on author name
@@ -41,7 +43,7 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
-export default function ReviewCard({ review, onStatusChange, hasGoogleAccount = false }: ReviewCardProps) {
+export default function ReviewCard({ review, onStatusChange, hasGoogleAccount = false, isTrialExpired = false }: ReviewCardProps) {
   const [expanded, setExpanded] = useState(false);
   const t = useTranslations("reviews");
 
@@ -87,14 +89,20 @@ export default function ReviewCard({ review, onStatusChange, hasGoogleAccount = 
 
       {/* Action */}
       {review.status === "pending" && (
-        <button
-          onClick={() => setExpanded((v) => !v)}
-          className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          {expanded ? t("hideResponse") : t("respondWithAI")}
-          {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-        </button>
+        isTrialExpired ? (
+          <LockedButton className="text-xs text-indigo-400 font-medium">
+            {t("respondWithAI")}
+          </LockedButton>
+        ) : (
+          <button
+            onClick={() => setExpanded((v) => !v)}
+            className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            {expanded ? t("hideResponse") : t("respondWithAI")}
+            {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
+        )
       )}
 
       {/* Response panel */}

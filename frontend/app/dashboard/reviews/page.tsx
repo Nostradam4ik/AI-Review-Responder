@@ -4,6 +4,9 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { reviewsApi, usersApi, billingApi } from "@/lib/api";
 import type { Review, ReviewStatus } from "@/types";
 import ReviewCard from "@/components/ReviewCard";
+import { TrialExpiredBanner } from "@/components/TrialExpiredBanner";
+import { LockedButton } from "@/components/LockedButton";
+import { useSubscription } from "@/hooks/useSubscription";
 import { useTranslations } from "next-intl";
 import { RefreshCw, MessageSquare, Sparkles, Download, Search, X, Lock } from "lucide-react";
 import UpgradeModal from "@/components/UpgradeModal";
@@ -37,6 +40,7 @@ const DATE_RANGES: { label: string; value: DateRange }[] = [
 
 export default function ReviewsPage() {
   const t = useTranslations("reviews");
+  const { isTrialExpired } = useSubscription();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [total, setTotal] = useState(0);
   const [status, setStatus] = useState<ReviewStatus | "all">("all");
@@ -123,6 +127,7 @@ export default function ReviewsPage() {
 
   return (
     <div className="space-y-5 max-w-4xl">
+      {isTrialExpired && <TrialExpiredBanner />}
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
@@ -145,14 +150,20 @@ export default function ReviewsPage() {
             CSV
           </button>
           {hasGoogleAccount && (
-            <button
-              onClick={handleSync}
-              disabled={syncing}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-all disabled:opacity-50 active:scale-95"
-            >
-              <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
-              {syncing ? t("syncing") : t("syncButton")}
-            </button>
+            isTrialExpired ? (
+              <LockedButton className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium">
+                {t("syncButton")}
+              </LockedButton>
+            ) : (
+              <button
+                onClick={handleSync}
+                disabled={syncing}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-all disabled:opacity-50 active:scale-95"
+              >
+                <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
+                {syncing ? t("syncing") : t("syncButton")}
+              </button>
+            )
           )}
         </div>
       </div>
@@ -247,6 +258,7 @@ export default function ReviewsPage() {
               key={review.id}
               review={review}
               hasGoogleAccount={hasGoogleAccount}
+              isTrialExpired={isTrialExpired}
               onStatusChange={fetchReviews}
             />
           ))}

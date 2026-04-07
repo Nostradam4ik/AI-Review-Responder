@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { reviewsApi, locationsApi, usersApi, billingApi, type BillingStatus } from "@/lib/api";
+import { reviewsApi, locationsApi, usersApi } from "@/lib/api";
 import type { ReviewList, Location } from "@/types";
 import StatsWidget from "@/components/StatsWidget";
 import ReviewCard from "@/components/ReviewCard";
@@ -9,6 +9,9 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { MessageSquare, Clock, Star, RefreshCw, AlertTriangle, Sparkles, TrendingUp } from "lucide-react";
 import { TrialBanner } from "@/components/TrialBanner";
+import { TrialExpiredBanner } from "@/components/TrialExpiredBanner";
+import { LockedButton } from "@/components/LockedButton";
+import { useSubscription } from "@/hooks/useSubscription";
 
 // Simple SVG sparkline chart (last 30 days by week buckets)
 function RatingSparkline({ reviews }: { reviews: { review_date?: string | null; rating: number }[] }) {
@@ -92,7 +95,7 @@ export default function DashboardPage() {
   const [allReviews, setAllReviews] = useState<{ review_date?: string | null; rating: number; status: string }[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
-  const [billing, setBilling] = useState<BillingStatus | null>(null);
+  const { isTrialExpired, isTrial, trialDaysRemaining } = useSubscription();
   const [hasGoogleAccount, setHasGoogleAccount] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
@@ -100,8 +103,6 @@ export default function DashboardPage() {
   const [demoMsg, setDemoMsg] = useState("");
 
   useEffect(() => {
-    billingApi.status().then(setBilling).catch(() => {});
-
     Promise.all([
       reviewsApi.list({ limit: 10 }),
       reviewsApi.list({ limit: 200 }),
@@ -169,9 +170,12 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 max-w-5xl">
-      {billing?.is_trial && (billing.trial_days_remaining ?? 0) > 0 && (
-        <TrialBanner daysRemaining={billing.trial_days_remaining!} />
-      )}
+      {isTrialExpired
+        ? <TrialExpiredBanner />
+        : isTrial && trialDaysRemaining > 0
+          ? <TrialBanner daysRemaining={trialDaysRemaining} />
+          : null
+      }
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
@@ -179,14 +183,20 @@ export default function DashboardPage() {
           <p className="text-slate-400 text-sm mt-1">{t("locationsConnected", { count: locations.length })}</p>
         </div>
         {hasGoogleAccount && (
-          <button
-            onClick={handleSync}
-            disabled={syncing}
-            className="flex items-center gap-2 px-4 py-2 bg-[#1A1A2E] border border-[#2A2A3E] hover:border-indigo-500/50 text-slate-300 hover:text-white rounded-lg text-sm font-medium transition-all disabled:opacity-50 active:scale-95"
-          >
-            <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
-            {syncing ? "Syncing..." : "Sync"}
-          </button>
+          isTrialExpired ? (
+            <LockedButton className="flex items-center gap-2 px-4 py-2 bg-[#1A1A2E] border border-[#2A2A3E] text-slate-300 rounded-lg text-sm font-medium">
+              Sync
+            </LockedButton>
+          ) : (
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="flex items-center gap-2 px-4 py-2 bg-[#1A1A2E] border border-[#2A2A3E] hover:border-indigo-500/50 text-slate-300 hover:text-white rounded-lg text-sm font-medium transition-all disabled:opacity-50 active:scale-95"
+            >
+              <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
+              {syncing ? "Syncing..." : "Sync"}
+            </button>
+          )
         )}
       </div>
 
@@ -282,7 +292,7 @@ export default function DashboardPage() {
         ) : (
           <div className="space-y-3">
             {reviewData?.reviews.map((review) => (
-              <ReviewCard key={review.id} review={review} hasGoogleAccount={hasGoogleAccount} />
+              <ReviewCard key={review.id} review={review} hasGoogleAccount={hasGoogleAccount} isTrialExpired={isTrialExpired} />
             ))}
           </div>
         )}

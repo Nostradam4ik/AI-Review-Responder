@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { locationsApi, usersApi, billingApi } from "@/lib/api";
+import { TrialExpiredBanner } from "@/components/TrialExpiredBanner";
+import { useSubscription } from "@/hooks/useSubscription";
 import type { Location } from "@/types";
 import { useTranslations } from "next-intl";
 import { RefreshCw, CheckCircle2, MapPin, Save, KeyRound, Bot, ExternalLink, Unlink, Zap, FileText, Lock } from "lucide-react";
@@ -29,6 +32,8 @@ const sectionCls =
 export default function SettingsPage() {
   const t = useTranslations("settings");
   const tR = useTranslations("reviews");
+  const router = useRouter();
+  const { isTrialExpired } = useSubscription();
 
   // Locations
   const [locations, setLocations] = useState<Location[]>([]);
@@ -161,6 +166,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6 max-w-2xl">
+      {isTrialExpired && <TrialExpiredBanner />}
       <h1 className="text-2xl font-semibold text-white tracking-tight">{t("title")}</h1>
 
       {/* Profile */}
@@ -240,42 +246,53 @@ export default function SettingsPage() {
         </div>
         <form onSubmit={handleAiSave} className="space-y-5">
           {/* Auto-publish toggle */}
-          <div
-            className={`flex items-start justify-between gap-4 p-4 bg-[#0A0A0F] rounded-lg border border-[#2A2A3E] ${!canProFeatures ? "opacity-60" : ""}`}
-          >
-            <div className="space-y-1">
-              <div className="flex items-center gap-1.5">
-                <p className="text-sm font-medium text-white">Auto-publish responses</p>
-                {!canProFeatures && (
-                  <span className="flex items-center gap-1 text-[10px] font-semibold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded-full">
-                    <Lock className="w-2.5 h-2.5" />
-                    Pro
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-slate-500">
-                When enabled, AI responses are published to Google immediately after generation — no manual confirmation needed.
-              </p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={autoPublish}
-              onClick={() => {
-                if (!canProFeatures) { setShowUpgradeModal("Auto-publish"); return; }
-                setAutoPublish((v) => !v);
-              }}
-              className={`relative shrink-0 w-10 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-[#0A0A0F] ${
-                autoPublish && canProFeatures ? "bg-indigo-600" : "bg-[#2A2A3E]"
-              }`}
+          {isTrialExpired ? (
+            <div
+              className="flex items-center gap-2 p-4 bg-[#0A0A0F] rounded-lg border border-[#2A2A3E] opacity-50 cursor-not-allowed"
+              onClick={() => router.push("/dashboard/billing?reason=trial_expired")}
+              title="Upgrade to enable auto-publish"
             >
-              <span
-                className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${
-                  autoPublish && canProFeatures ? "translate-x-4" : "translate-x-0"
+              <Lock size={14} className="text-slate-400 shrink-0" />
+              <span className="text-sm text-slate-500">Auto-publish (upgrade required)</span>
+            </div>
+          ) : (
+            <div
+              className={`flex items-start justify-between gap-4 p-4 bg-[#0A0A0F] rounded-lg border border-[#2A2A3E] ${!canProFeatures ? "opacity-60" : ""}`}
+            >
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-medium text-white">Auto-publish responses</p>
+                  {!canProFeatures && (
+                    <span className="flex items-center gap-1 text-[10px] font-semibold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded-full">
+                      <Lock className="w-2.5 h-2.5" />
+                      Pro
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500">
+                  When enabled, AI responses are published to Google immediately after generation — no manual confirmation needed.
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={autoPublish}
+                onClick={() => {
+                  if (!canProFeatures) { setShowUpgradeModal("Auto-publish"); return; }
+                  setAutoPublish((v) => !v);
+                }}
+                className={`relative shrink-0 w-10 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-[#0A0A0F] ${
+                  autoPublish && canProFeatures ? "bg-indigo-600" : "bg-[#2A2A3E]"
                 }`}
-              />
-            </button>
-          </div>
+              >
+                <span
+                  className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${
+                    autoPublish && canProFeatures ? "translate-x-4" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+          )}
 
           {/* Response instructions */}
           <div className="flex flex-col gap-1.5">
