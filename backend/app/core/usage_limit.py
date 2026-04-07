@@ -61,7 +61,7 @@ async def check_usage_limit(user: User, action_type: str, db: AsyncSession) -> N
     now = datetime.now(timezone.utc)
 
     # Trial expiry
-    if sub.status == "trialing" and sub.trial_end and now > sub.trial_end:
+    if sub.status == "trialing" and (not sub.trial_end or now > sub.trial_end):
         raise HTTPException(
             status_code=402,
             detail={"error": "trial_expired", "upgrade_url": "/dashboard/billing"},

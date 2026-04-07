@@ -114,7 +114,7 @@ async def publish_response(
 
     text_to_publish = response.final_text or response.ai_draft
 
-    gmb = GMBService(current_user.access_token)
+    gmb = await get_gmb_service(current_user, db)
     success = await gmb.publish_response(
         gmb_location_id=location.gmb_location_id,
         review_id=review.gmb_review_id,

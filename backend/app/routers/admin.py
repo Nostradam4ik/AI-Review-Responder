@@ -262,7 +262,6 @@ async def reset_trial(
 
     sub.status = "trialing"
     sub.trial_end = datetime.now(timezone.utc) + timedelta(days=body.days)
-    sub.stripe_subscription_id = None
 
     user = await db.get(User, uid)
     if user:

@@ -59,7 +59,7 @@ def require_plan_feature(feature: str):
         now = datetime.now(timezone.utc)
 
         # Trial expired with no paid plan
-        if sub.status == "trialing" and sub.trial_end and sub.trial_end < now:
+        if sub.status == "trialing" and (not sub.trial_end or sub.trial_end < now):
             raise HTTPException(status_code=402, detail="trial_expired")
 
         if sub.status not in ("active", "trialing"):

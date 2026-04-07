@@ -71,6 +71,7 @@ export interface BillingStatus {
     responses_limit: number;
   };
   is_trial?: boolean;
+  is_trial_expired?: boolean;
   trial_days_remaining?: number | null;
   pro_features_available?: boolean;
 }

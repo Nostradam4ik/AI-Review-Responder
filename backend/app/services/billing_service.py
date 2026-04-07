@@ -123,6 +123,7 @@ async def get_billing_status(user: User, db: AsyncSession) -> dict:
     now = datetime.now(timezone.utc)
     is_trial = sub.status == "trialing"
     trial_active = is_trial and sub.trial_end is not None and sub.trial_end > now
+    trial_expired = is_trial and (not sub.trial_end or sub.trial_end <= now)
     trial_days_remaining: int | None = None
     if trial_active and sub.trial_end:
         trial_days_remaining = max(0, (sub.trial_end - now).days)
@@ -152,6 +153,7 @@ async def get_billing_status(user: User, db: AsyncSession) -> dict:
             "responses_limit": plan.max_responses_per_month if plan else 0,
         },
         "is_trial": is_trial and trial_active,
+        "is_trial_expired": trial_expired,
         "trial_days_remaining": trial_days_remaining,
         "pro_features_available": pro_features_available,
     }

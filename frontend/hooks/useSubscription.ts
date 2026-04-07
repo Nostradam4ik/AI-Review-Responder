@@ -23,8 +23,7 @@ export function useSubscription(): SubscriptionState {
     billingApi
       .status()
       .then((data) => {
-        const isTrialExpired =
-          data.is_trial === true && (data.trial_days_remaining ?? 1) <= 0;
+        const isTrialExpired = data.is_trial_expired === true;
 
         setState({
           isTrialExpired,
