@@ -35,5 +35,9 @@ class User(Base):
     auto_publish: Mapped[bool] = mapped_column(Boolean, default=False)
     response_instructions: Mapped[str | None] = mapped_column(Text)
 
+    # Admin / account state
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
     locations: Mapped[list["Location"]] = relationship("Location", back_populates="user", cascade="all, delete-orphan")
     subscription: Mapped["Subscription | None"] = relationship("Subscription", back_populates="user", uselist=False)

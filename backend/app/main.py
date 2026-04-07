@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import engine, Base
 from app.routers import auth, locations, reviews, responses, users
-from app.routers import billing, analytics
+from app.routers import billing, analytics, admin
 from app.tasks.scheduler import start_scheduler, stop_scheduler
 
 
@@ -49,6 +49,7 @@ app.include_router(reviews.router)
 app.include_router(responses.router)
 app.include_router(billing.router)
 app.include_router(analytics.router)
+app.include_router(admin.router)
 
 
 @app.get("/health")

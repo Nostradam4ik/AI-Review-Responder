@@ -23,6 +23,7 @@ class UserProfileResponse(BaseModel):
     telegram_connected: bool
     auto_publish: bool
     response_instructions: str | None
+    is_admin: bool
 
 
 class UpdateProfileRequest(BaseModel):
@@ -52,6 +53,7 @@ def _profile(user: User) -> UserProfileResponse:
         telegram_connected=bool(user.telegram_chat_id),
         auto_publish=bool(user.auto_publish),
         response_instructions=user.response_instructions,
+        is_admin=bool(user.is_admin),
     )
 
 

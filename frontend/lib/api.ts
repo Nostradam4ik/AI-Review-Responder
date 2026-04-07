@@ -2,6 +2,55 @@ import axios from "axios";
 import { getToken, logout } from "./auth";
 import type { Location, Review, ReviewList, Response, Tone } from "@/types";
 
+export interface UserProfile {
+  id: string;
+  email: string;
+  business_name: string | null;
+  tone_preference: string;
+  language: string;
+  email_verified: boolean;
+  onboarding_done: boolean;
+  has_password: boolean;
+  telegram_connected: boolean;
+  auto_publish: boolean;
+  response_instructions: string | null;
+  is_admin: boolean;
+}
+
+export interface AdminStats {
+  total_users: number;
+  active_subscriptions: number;
+  trial_users: number;
+  expired_trials: number;
+  mrr: number;
+  new_users_today: number;
+  new_users_this_week: number;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  name: string | null;
+  avatar_url: string | null;
+  plan_name: string;
+  subscription_status: string;
+  is_trial: boolean;
+  trial_days_remaining: number | null;
+  created_at: string;
+  last_seen_at: string | null;
+  locations_count: number;
+  reviews_count: number;
+  responses_count: number;
+  is_admin: boolean;
+}
+
+export interface AdminUserList {
+  users: AdminUser[];
+  total: number;
+  page: number;
+  pages: number;
+}
+
 export interface BillingStatus {
   subscription: {
     status: string;
@@ -117,7 +166,7 @@ const _token = () =>
   typeof window !== "undefined" ? (localStorage.getItem("air_token") || "") : "";
 
 export const usersApi = {
-  me: () => api.get("/users/me").then((r) => r.data),
+  me: () => api.get<UserProfile>("/users/me").then((r) => r.data),
   update: (data: { business_name?: string; tone_preference?: string; language?: string; onboarding_done?: boolean; auto_publish?: boolean; response_instructions?: string }) =>
     api.patch("/users/me", data).then((r) => r.data),
   changePassword: (current_password: string, new_password: string) =>
@@ -128,6 +177,19 @@ export const usersApi = {
     }).then((r) => r.json()) as Promise<{ connected: boolean }>,
   telegramDisconnect: () =>
     api.delete("/users/me/telegram").then((r) => r.data),
+};
+
+// --- Admin ---
+export const adminApi = {
+  stats: () => api.get<AdminStats>("/admin/stats").then((r) => r.data),
+  users: (params: { search?: string; status?: string; page?: number; limit?: number }) =>
+    api.get<AdminUserList>("/admin/users", { params }).then((r) => r.data),
+  resetTrial: (userId: string, days = 14) =>
+    api.post(`/admin/users/${userId}/reset-trial`, { days }).then((r) => r.data),
+  changePlan: (userId: string, plan: string, reason = "") =>
+    api.post(`/admin/users/${userId}/change-plan`, { plan, reason }).then((r) => r.data),
+  deleteUser: (userId: string) =>
+    api.delete(`/admin/users/${userId}`).then((r) => r.data),
 };
 
 // --- Billing ---

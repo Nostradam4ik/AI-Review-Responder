@@ -22,6 +22,7 @@ import {
   Menu,
   X,
   BarChart2,
+  Shield,
 } from "lucide-react";
 
 const LANGS: { code: Locale; label: string }[] = [
@@ -42,7 +43,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [mounted, setMounted] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [user, setUser] = useState<{ email?: string; business_name?: string } | null>(null);
+  const [user, setUser] = useState<{ email?: string; business_name?: string; is_admin?: boolean } | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => { setMounted(true); }, []);
@@ -111,6 +112,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </Link>
           );
         })}
+
+        {/* Admin link — only visible to admins */}
+        {user?.is_admin && (
+          <>
+            <div className="mx-2 my-1 border-t border-[#2A2A3E]" />
+            <Link
+              href="/dashboard/admin"
+              onClick={() => setMobileOpen(false)}
+              title={collapsed ? "Admin" : undefined}
+              className={`flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150 ${
+                isActive("/dashboard/admin")
+                  ? "bg-rose-600/10 text-rose-300 border-l-2 border-rose-500 pl-[10px] pr-3 py-2.5"
+                  : "text-slate-600 hover:text-slate-300 hover:bg-[#1A1A2E]/70 border-l-2 border-transparent pl-[10px] pr-3 py-2.5"
+              } ${collapsed ? "justify-center" : ""}`}
+            >
+              <Shield className={`w-[18px] h-[18px] shrink-0 ${isActive("/dashboard/admin") ? "text-rose-400" : ""}`} />
+              {!collapsed && <span className="flex-1 truncate">Admin</span>}
+            </Link>
+          </>
+        )}
       </nav>
 
       {/* Bottom: lang + user + logout */}
