@@ -1,5 +1,6 @@
 import csv
 import io
+import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -12,7 +13,7 @@ from app.database import get_db
 from app.models.location import Location
 from app.models.review import Review
 from app.models.user import User
-from app.services.gmb_service import GMBService
+from app.services.gmb_service import GMBService, get_gmb_service
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
 
@@ -307,18 +308,19 @@ async def sync_reviews(
             "message": "No active locations found. Go to Settings to sync your Google Business locations.",
         }
 
-    gmb = GMBService(current_user.access_token)
+    gmb = await get_gmb_service(current_user, db)
     total_new = 0
     for location in locations:
         new_reviews = await gmb.sync_reviews(location, db)
         total_new += len(new_reviews)
 
+    await db.commit()
     return {"synced_locations": len(locations), "new_reviews": total_new}
 
 
 @router.patch("/{review_id}/status")
 async def update_review_status(
-    review_id: str,
+    review_id: uuid.UUID,
     status: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -339,4 +341,4 @@ async def update_review_status(
     review.status = status
     await db.commit()
     await db.refresh(review)
-    return {"id": review_id, "status": status}
+    return {"id": str(review_id), "status": status}

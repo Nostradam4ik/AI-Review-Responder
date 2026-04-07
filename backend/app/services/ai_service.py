@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.location import Location
 from app.models.response import Response
 from app.models.review import Review
+from app.models.usage_log import UsageLog
 from app.services.llm.base import ReviewContext
 from app.services.llm.factory import get_llm_provider
 
@@ -44,7 +46,7 @@ async def generate_and_save(
     if existing:
         existing.ai_draft = ai_text
         existing.tone_used = tone
-        existing.model_used = "llama-3.3-70b-versatile"
+        existing.model_used = provider.MODEL
         existing.was_edited = False
         existing.final_text = None
         existing.published_at = None
@@ -59,4 +61,14 @@ async def generate_and_save(
     db.add(response)
     await db.flush()
     await db.refresh(response)
+
+    if location:
+        period = datetime.now(timezone.utc).strftime("%Y-%m")
+        db.add(UsageLog(
+            user_id=location.user_id,
+            action_type="ai_generate",
+            billing_period=period,
+        ))
+        await db.flush()
+
     return response
