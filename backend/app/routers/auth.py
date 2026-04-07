@@ -122,7 +122,7 @@ async def callback(
             user_id=user.id,
             plan_id="starter",
             status="trialing",
-            trial_end=datetime.now(timezone.utc) + timedelta(days=7),
+            trial_end=datetime.now(timezone.utc) + timedelta(days=14),
         ))
         user.plan = "starter"
         await db.flush()
@@ -209,7 +209,7 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
         user_id=user.id,
         plan_id="starter",
         status="trialing",
-        trial_end=datetime.now(timezone.utc) + timedelta(days=7),
+        trial_end=datetime.now(timezone.utc) + timedelta(days=14),
     ))
     user.plan = "starter"
     await db.flush()

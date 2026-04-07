@@ -151,6 +151,7 @@ class GMBService:
                         author_name=review_data.get("reviewer", {}).get("displayName"),
                         rating=rating,
                         comment=review_data.get("comment", ""),
+                        language=review_data.get("languageCode", "fr"),
                         review_date=review_date,
                         status="pending",
                     )

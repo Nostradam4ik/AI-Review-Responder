@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 import stripe
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -124,6 +124,7 @@ async def get_billing_status(user: User, db: AsyncSession) -> dict:
     usage_result = await db.execute(
         select(func.count()).where(
             UsageLog.user_id == user.id,
+            UsageLog.action_type == "ai_generate",
             UsageLog.billing_period == period,
         )
     )
@@ -258,6 +259,13 @@ async def handle_webhook(payload: bytes, sig_header: str, db: AsyncSession) -> N
             sub.status = "active"
             sub.current_period_start = datetime.fromtimestamp(stripe_sub["current_period_start"], tz=timezone.utc)
             sub.current_period_end = datetime.fromtimestamp(stripe_sub["current_period_end"], tz=timezone.utc)
+            new_period = sub.current_period_start.strftime("%Y-%m")
+            await db.execute(
+                delete(UsageLog).where(
+                    UsageLog.user_id == sub.user_id,
+                    UsageLog.billing_period != new_period,
+                )
+            )
             await db.commit()
 
     elif event_type == "invoice.payment_failed":

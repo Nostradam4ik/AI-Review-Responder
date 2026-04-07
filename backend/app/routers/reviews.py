@@ -124,6 +124,7 @@ async def seed_demo_reviews(
         created += 1
 
     await db.flush()
+    await db.commit()
     return {"created": created, "location": location.name}
 
 

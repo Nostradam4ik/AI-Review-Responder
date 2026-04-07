@@ -67,6 +67,8 @@ async def generate_response(
             if published:
                 response.published_at = datetime.now(timezone.utc)
                 review.status = "responded"
+                await db.commit()
+                await db.refresh(response)
         except HTTPException as exc:
             # Usage limit exceeded or trial expired — save draft but skip publish
             _logger.warning("Auto-publish skipped for user %s: %s", current_user.id, exc.detail)
