@@ -108,3 +108,127 @@ async def send_payment_failed_email(to_email: str, plan_name: str) -> None:
         })
     except Exception as e:
         logger.warning("Failed to send payment failed email to %s: %s", to_email, e)
+
+
+async def send_welcome_email(to_email: str, user_name: str, trial_days: int = 14) -> None:
+    """Send welcome email with trial details after account creation."""
+    if not settings.RESEND_API_KEY:
+        logger.info("RESEND_API_KEY not set — skipping welcome email to %s", to_email)
+        return
+
+    _init_resend()
+    dashboard_url = f"{settings.FRONTEND_URL}/dashboard"
+    onboarding_url = f"{settings.FRONTEND_URL}/onboarding"
+
+    try:
+        resend.Emails.send({
+            "from": settings.FROM_EMAIL,
+            "to": [to_email],
+            "subject": "Welcome to AI Review Responder 🎉",
+            "html": f"""
+            <div style="font-family:sans-serif;max-width:520px;margin:0 auto">
+              <h2>Welcome, {user_name}!</h2>
+              <p>Your account is ready. You have a <strong>{trial_days}-day free trial</strong>
+              with full access to all Pro features — no credit card required.</p>
+              <p>To get started, connect your Google Business Profile so we can start
+              syncing and responding to your reviews automatically.</p>
+              <a href="{onboarding_url}"
+                 style="display:inline-block;background:#4f46e5;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;margin:16px 0">
+                Connect Google Business
+              </a>
+              <p>Or go straight to your <a href="{dashboard_url}" style="color:#4f46e5">dashboard</a>
+              to explore the product.</p>
+              <p style="color:#888;font-size:12px">
+                Questions? Reply to this email — we read every message.
+              </p>
+            </div>
+            """,
+        })
+    except Exception as e:
+        logger.warning("Failed to send welcome email to %s: %s", to_email, e)
+
+
+async def send_trial_expiring_email(to_email: str, user_name: str, days_remaining: int) -> None:
+    """Remind user their trial is ending soon and prompt them to upgrade."""
+    if not settings.RESEND_API_KEY:
+        logger.info("RESEND_API_KEY not set — skipping trial expiring email to %s", to_email)
+        return
+
+    _init_resend()
+    billing_url = f"{settings.FRONTEND_URL}/dashboard/billing"
+    urgency = "today" if days_remaining <= 1 else f"in {days_remaining} days"
+
+    try:
+        resend.Emails.send({
+            "from": settings.FROM_EMAIL,
+            "to": [to_email],
+            "subject": f"Your trial ends in {days_remaining} day(s) — choose a plan",
+            "html": f"""
+            <div style="font-family:sans-serif;max-width:520px;margin:0 auto">
+              <h2>Your free trial expires {urgency}, {user_name}</h2>
+              <p>After your trial ends, you'll lose access to AI response generation,
+              Google Business sync, and review notifications.</p>
+              <p><strong>Keep your access by choosing a plan:</strong></p>
+              <ul style="color:#444;line-height:1.8">
+                <li><strong>Starter €19/mo</strong> — 1 location, 100 AI responses/month</li>
+                <li><strong>Pro €39/mo</strong> — 3 locations, unlimited responses,
+                    CSV export, auto-publish, custom instructions</li>
+                <li><strong>Agency €79/mo</strong> — 10 locations, everything in Pro</li>
+              </ul>
+              <a href="{billing_url}"
+                 style="display:inline-block;background:#4f46e5;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;margin:16px 0">
+                Choose a plan
+              </a>
+              <p style="color:#888;font-size:12px">
+                No action needed to cancel — your account simply reverts to read-only
+                if you don't upgrade.
+              </p>
+            </div>
+            """,
+        })
+    except Exception as e:
+        logger.warning("Failed to send trial expiring email to %s: %s", to_email, e)
+
+
+async def send_subscription_confirmed_email(
+    to_email: str, user_name: str, plan_name: str, amount: int
+) -> None:
+    """Confirm successful subscription activation and list unlocked features."""
+    if not settings.RESEND_API_KEY:
+        logger.info("RESEND_API_KEY not set — skipping subscription confirmed email to %s", to_email)
+        return
+
+    _init_resend()
+    dashboard_url = f"{settings.FRONTEND_URL}/dashboard"
+
+    try:
+        resend.Emails.send({
+            "from": settings.FROM_EMAIL,
+            "to": [to_email],
+            "subject": f"You're now on the {plan_name} plan ✅",
+            "html": f"""
+            <div style="font-family:sans-serif;max-width:520px;margin:0 auto">
+              <h2>Subscription confirmed, {user_name}!</h2>
+              <p>You're now on the <strong>{plan_name}</strong> plan (€{amount}/month).
+              Thank you for your support!</p>
+              <p><strong>What's now unlocked:</strong></p>
+              <ul style="color:#444;line-height:1.8">
+                <li>✅ AI response generation</li>
+                <li>✅ Google Business sync &amp; auto-publish</li>
+                <li>✅ Telegram review alerts</li>
+                <li>✅ CSV export &amp; full analytics</li>
+                <li>✅ Custom AI response instructions</li>
+              </ul>
+              <a href="{dashboard_url}"
+                 style="display:inline-block;background:#4f46e5;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;margin:16px 0">
+                Go to dashboard
+              </a>
+              <p style="color:#888;font-size:12px">
+                Manage your subscription anytime from the Billing page.
+                Reply to this email if you have any questions.
+              </p>
+            </div>
+            """,
+        })
+    except Exception as e:
+        logger.warning("Failed to send subscription confirmed email to %s: %s", to_email, e)

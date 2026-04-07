@@ -1,11 +1,14 @@
 import logging
+from datetime import datetime, timedelta, timezone
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import select
 
 from app.database import async_session
 from app.models.location import Location
+from app.models.subscription import Subscription
 from app.models.user import User
+from app.services.email_service import send_trial_expiring_email
 from app.services.gmb_service import get_gmb_service
 from app.services.notification import notify_new_reviews
 
@@ -78,6 +81,38 @@ async def _sync_user_reviews(user: User, db) -> None:
         )
 
 
+async def check_trial_expirations() -> None:
+    """Daily job: email users whose trial ends in exactly 3 or 1 day."""
+    today = datetime.now(timezone.utc).date()
+    remind_days = {1, 3}
+    logger.info("Checking trial expirations...")
+
+    async with async_session() as db:
+        result = await db.execute(
+            select(User, Subscription)
+            .join(Subscription, Subscription.user_id == User.id)
+            .where(
+                Subscription.status == "trialing",
+                Subscription.trial_end.isnot(None),
+            )
+        )
+        rows = result.all()
+
+    for user, sub in rows:
+        days_left = (sub.trial_end.date() - today).days
+        if days_left in remind_days:
+            name = user.business_name or user.email
+            try:
+                await send_trial_expiring_email(user.email, name, days_left)
+                logger.info(
+                    "Sent trial expiring email to %s (%d day(s) left)", user.email, days_left
+                )
+            except Exception as e:
+                logger.warning(
+                    "Failed to send trial expiring email to %s: %s", user.email, e
+                )
+
+
 def start_scheduler() -> None:
     scheduler.add_job(
         sync_all_reviews,
@@ -86,8 +121,15 @@ def start_scheduler() -> None:
         id="sync_reviews",
         replace_existing=True,
     )
+    scheduler.add_job(
+        check_trial_expirations,
+        trigger="interval",
+        hours=24,
+        id="trial_expirations",
+        replace_existing=True,
+    )
     scheduler.start()
-    logger.info("APScheduler started — syncing reviews every 30 minutes")
+    logger.info("APScheduler started — syncing reviews every 30 minutes, trial checks every 24 hours")
 
 
 def stop_scheduler() -> None:

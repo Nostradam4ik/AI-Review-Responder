@@ -19,7 +19,7 @@ from app.core.security import (
 from app.database import get_db
 from app.models.subscription import Subscription
 from app.models.user import User
-from app.services.email_service import send_reset_email, send_verification_email
+from app.services.email_service import send_reset_email, send_verification_email, send_welcome_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -126,6 +126,7 @@ async def callback(
         ))
         user.plan = "starter"
         await db.flush()
+        await send_welcome_email(user.email, user.business_name or user.email)
 
     # Issue our own JWT
     jwt_token = create_access_token({"sub": str(user.id)})
@@ -212,6 +213,7 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
     ))
     user.plan = "starter"
     await db.flush()
+    await send_welcome_email(user.email, body.business_name or user.email)
 
     if auto_verify:
         return {"message": "Account created. You can now sign in.", "verified": True}

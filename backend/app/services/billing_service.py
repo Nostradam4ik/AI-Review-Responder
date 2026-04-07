@@ -216,6 +216,18 @@ async def handle_webhook(payload: bytes, sig_header: str, db: AsyncSession) -> N
         if user:
             user.plan = plan_id
         await db.commit()
+        if user:
+            from app.services.email_service import send_subscription_confirmed_email
+            _plan_prices = {"starter": 19, "pro": 39, "agency": 79}
+            try:
+                await send_subscription_confirmed_email(
+                    user.email,
+                    user.business_name or user.email,
+                    plan_id.capitalize(),
+                    _plan_prices.get(plan_id, 0),
+                )
+            except Exception as e:
+                logger.warning("Failed to send subscription confirmed email: %s", e)
 
     elif event_type == "invoice.payment_succeeded":
         stripe_sub_id = data.get("subscription")
