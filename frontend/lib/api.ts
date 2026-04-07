@@ -1,6 +1,6 @@
 import axios from "axios";
 import { getToken, logout } from "./auth";
-import type { Location, Review, ReviewList, Response, Tone } from "@/types";
+import type { Location, ReviewList, Response, Tone } from "@/types";
 
 export interface UserProfile {
   id: string;
@@ -36,6 +36,10 @@ export interface AdminUser {
   subscription_status: string;
   is_trial: boolean;
   trial_days_remaining: number | null;
+  trial_end: string | null;
+  subscription_start: string | null;
+  subscription_end: string | null;
+  ai_responses_limit: number | null;
   created_at: string;
   last_seen_at: string | null;
   locations_count: number;
@@ -191,6 +195,14 @@ export const adminApi = {
     api.post(`/admin/users/${userId}/change-plan`, { plan, reason }).then((r) => r.data),
   deleteUser: (userId: string) =>
     api.delete(`/admin/users/${userId}`).then((r) => r.data),
+  editUser: (userId: string, body: {
+    plan?: string;
+    status?: string;
+    subscription_start?: string | null;
+    subscription_end?: string | null;
+    trial_end?: string | null;
+    ai_responses_limit?: number | null;
+  }) => api.put(`/admin/users/${userId}`, body).then((r) => r.data),
 };
 
 // --- Billing ---

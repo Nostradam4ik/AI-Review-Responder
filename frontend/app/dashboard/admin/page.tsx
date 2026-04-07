@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Shield,
@@ -17,9 +17,33 @@ import {
   Pencil,
   Trash2,
   X,
+  AlertTriangle,
 } from "lucide-react";
 import { adminApi, usersApi } from "@/lib/api";
 import type { AdminStats, AdminUser, AdminUserList } from "@/lib/api";
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function dateToInput(iso: string | null | undefined): string {
+  if (!iso) return "";
+  return iso.slice(0, 10); // "YYYY-MM-DD"
+}
+
+function inputToISO(date: string, endOfDay = false): string | null {
+  if (!date) return null;
+  return date + (endOfDay ? "T23:59:59Z" : "T00:00:00Z");
+}
+
+function fmtDate(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Confirm modal
@@ -46,10 +70,7 @@ function ConfirmModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
       <div className="relative bg-[#111118] border border-[#2A2A3E] rounded-2xl p-6 w-full max-w-sm shadow-xl space-y-4">
-        <button
-          onClick={onCancel}
-          className="absolute top-4 right-4 text-slate-500 hover:text-white transition"
-        >
+        <button onClick={onCancel} className="absolute top-4 right-4 text-slate-500 hover:text-white transition">
           <X className="w-4 h-4" />
         </button>
         <h3 className="text-base font-semibold text-white pr-6">{title}</h3>
@@ -58,15 +79,272 @@ function ConfirmModal({
           <button
             onClick={onConfirm}
             className={`flex-1 py-2.5 text-white text-sm font-semibold rounded-lg transition active:scale-95 ${
-              danger
-                ? "bg-rose-600 hover:bg-rose-500"
-                : "bg-indigo-600 hover:bg-indigo-500"
+              danger ? "bg-rose-600 hover:bg-rose-500" : "bg-indigo-600 hover:bg-indigo-500"
             }`}
           >
             {confirmLabel}
           </button>
           <button
             onClick={onCancel}
+            className="px-4 py-2.5 border border-[#2A2A3E] text-slate-400 hover:text-white text-sm font-medium rounded-lg transition"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Edit user modal
+// ---------------------------------------------------------------------------
+
+function EditUserModal({
+  user,
+  onClose,
+  onSaved,
+}: {
+  user: AdminUser;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const isExpiredTrial = user.subscription_status === "trialing" && !user.is_trial;
+
+  const [plan, setPlan] = useState(user.plan_name.toLowerCase());
+  const [status, setStatus] = useState(
+    isExpiredTrial ? "expired" : user.subscription_status === "none" ? "active" : user.subscription_status
+  );
+  const [subStart, setSubStart] = useState(dateToInput(user.subscription_start));
+  const [subEnd, setSubEnd] = useState(dateToInput(user.subscription_end));
+  const [noExpiry, setNoExpiry] = useState(
+    user.subscription_status === "active" && user.subscription_end === null
+  );
+  const [trialEnd, setTrialEnd] = useState(dateToInput(user.trial_end));
+  const [trialDays, setTrialDays] = useState("");
+  const [unlimitedAi, setUnlimitedAi] = useState(user.ai_responses_limit === -1);
+  const [aiLimit, setAiLimit] = useState(
+    user.ai_responses_limit !== null && user.ai_responses_limit !== -1
+      ? String(user.ai_responses_limit)
+      : ""
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  // Quick trial-days helper → auto-fill trial end date
+  useEffect(() => {
+    const n = parseInt(trialDays);
+    if (!n || n <= 0) return;
+    const d = new Date();
+    d.setDate(d.getDate() + n);
+    setTrialEnd(d.toISOString().slice(0, 10));
+  }, [trialDays]);
+
+  // When switching to trialing, pre-fill trial end if empty
+  useEffect(() => {
+    if (status === "trialing" && !trialEnd) {
+      const d = new Date();
+      d.setDate(d.getDate() + 14);
+      setTrialEnd(d.toISOString().slice(0, 10));
+    }
+  }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function submit() {
+    if (status === "trialing" && !trialEnd) {
+      setError("Trial end date is required when status is Trial.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      await adminApi.editUser(user.id, {
+        plan: plan || undefined,
+        status: status || undefined,
+        subscription_start: inputToISO(subStart) ?? undefined,
+        subscription_end: noExpiry ? null : inputToISO(subEnd, true),
+        trial_end: status === "trialing" ? inputToISO(trialEnd, true) : undefined,
+        ai_responses_limit: unlimitedAi ? -1 : (aiLimit ? parseInt(aiLimit) : null),
+      });
+      onSaved();
+      onClose();
+    } catch {
+      setError("Failed to save changes. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const fieldCls =
+    "w-full px-3 py-2 bg-[#0A0A0F] border border-[#2A2A3E] rounded-lg text-sm text-slate-200 focus:outline-none focus:border-indigo-500/60 transition";
+  const labelCls = "block text-xs font-medium text-slate-400 mb-1.5";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-[#111118] border border-[#2A2A3E] rounded-2xl w-full max-w-md shadow-xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#2A2A3E]">
+          <div>
+            <h3 className="text-sm font-semibold text-white">Edit subscription</h3>
+            <p className="text-[11px] text-slate-500 mt-0.5 truncate max-w-[300px]">
+              {user.name || user.email}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-slate-500 hover:text-white transition">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Form */}
+        <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
+          {/* Plan + Status row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls}>Plan</label>
+              <select value={plan} onChange={(e) => setPlan(e.target.value)} className={fieldCls}>
+                <option value="starter">Starter</option>
+                <option value="pro">Pro</option>
+                <option value="agency">Agency</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Status</label>
+              <select value={status} onChange={(e) => setStatus(e.target.value)} className={fieldCls}>
+                <option value="active">Active</option>
+                <option value="trialing">Trial</option>
+                <option value="expired">Expired</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Trial fields — only when status = trialing */}
+          {status === "trialing" && (
+            <div className="p-3 bg-blue-500/5 border border-blue-500/15 rounded-xl space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Trial ends</label>
+                  <input
+                    type="date"
+                    value={trialEnd}
+                    onChange={(e) => { setTrialEnd(e.target.value); setTrialDays(""); }}
+                    className={fieldCls}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Or add days</label>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-slate-500">+</span>
+                    <input
+                      type="number"
+                      min="1"
+                      max="365"
+                      value={trialDays}
+                      onChange={(e) => setTrialDays(e.target.value)}
+                      placeholder="14"
+                      className={fieldCls}
+                    />
+                    <span className="text-xs text-slate-500 whitespace-nowrap">days</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Subscription period — only relevant for active */}
+          {status === "active" && (
+            <div className="p-3 bg-[#0A0A0F] border border-[#2A2A3E] rounded-xl space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Active from</label>
+                  <input
+                    type="date"
+                    value={subStart}
+                    onChange={(e) => setSubStart(e.target.value)}
+                    className={fieldCls}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Active until</label>
+                  <input
+                    type="date"
+                    value={noExpiry ? "" : subEnd}
+                    onChange={(e) => { setSubEnd(e.target.value); setNoExpiry(false); }}
+                    disabled={noExpiry}
+                    placeholder="no expiry"
+                    className={`${fieldCls} disabled:opacity-40`}
+                  />
+                </div>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={noExpiry}
+                  onChange={(e) => { setNoExpiry(e.target.checked); if (e.target.checked) setSubEnd(""); }}
+                  className="rounded border-[#2A2A3E] bg-[#0A0A0F] text-indigo-500"
+                />
+                <span className="text-xs text-slate-400">No expiry — unlimited access</span>
+              </label>
+            </div>
+          )}
+
+          {/* Warning: active + no expiry */}
+          {status === "active" && noExpiry && (
+            <div className="flex items-start gap-2.5 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
+              <p className="text-xs text-amber-300 leading-relaxed">
+                No expiry set — this account will have unlimited access until manually changed.
+              </p>
+            </div>
+          )}
+
+          {/* AI responses limit */}
+          <div>
+            <label className={labelCls}>AI responses / month</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="1"
+                value={unlimitedAi ? "" : aiLimit}
+                onChange={(e) => setAiLimit(e.target.value)}
+                disabled={unlimitedAi}
+                placeholder={unlimitedAi ? "∞ Unlimited" : "Plan default"}
+                className={`flex-1 ${fieldCls} disabled:opacity-40`}
+              />
+              <label className="flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer whitespace-nowrap">
+                <input
+                  type="checkbox"
+                  checked={unlimitedAi}
+                  onChange={(e) => { setUnlimitedAi(e.target.checked); if (e.target.checked) setAiLimit(""); }}
+                  className="rounded border-[#2A2A3E] bg-[#0A0A0F] text-indigo-500"
+                />
+                Unlimited
+              </label>
+            </div>
+            <p className="text-[11px] text-slate-600 mt-1">
+              Leave empty to use the plan&apos;s default limit.
+            </p>
+          </div>
+
+          {/* Error */}
+          {error && (
+            <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">
+              {error}
+            </p>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex gap-2 px-6 py-4 border-t border-[#2A2A3E]">
+          <button
+            onClick={submit}
+            disabled={saving}
+            className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition active:scale-95"
+          >
+            {saving ? "Saving…" : "Save changes"}
+          </button>
+          <button
+            onClick={onClose}
             className="px-4 py-2.5 border border-[#2A2A3E] text-slate-400 hover:text-white text-sm font-medium rounded-lg transition"
           >
             Cancel
@@ -133,86 +411,15 @@ function KpiCard({
 }
 
 // ---------------------------------------------------------------------------
-// Change plan inline dropdown
-// ---------------------------------------------------------------------------
-
-function ChangePlanDropdown({
-  userId,
-  currentPlan,
-  onDone,
-}: {
-  userId: string;
-  currentPlan: string;
-  onDone: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  async function pick(plan: string) {
-    setLoading(true);
-    setOpen(false);
-    try {
-      await adminApi.changePlan(userId, plan, "admin override");
-      onDone();
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const plans = ["starter", "pro", "agency"];
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        disabled={loading}
-        title="Change plan"
-        className="flex items-center justify-center w-7 h-7 rounded-md bg-[#1A1A2E] border border-[#2A2A3E] text-slate-400 hover:text-white hover:border-indigo-500/40 transition disabled:opacity-40"
-      >
-        <Pencil className="w-3 h-3" />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-8 z-20 bg-[#111118] border border-[#2A2A3E] rounded-xl shadow-xl overflow-hidden min-w-[120px]">
-          {plans.map((p) => (
-            <button
-              key={p}
-              onClick={() => pick(p)}
-              className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors ${
-                p === currentPlan.toLowerCase()
-                  ? "text-indigo-400 bg-indigo-500/10"
-                  : "text-slate-300 hover:bg-[#1A1A2E] hover:text-white"
-              }`}
-            >
-              {p.charAt(0).toUpperCase() + p.slice(1)}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Skeleton row
 // ---------------------------------------------------------------------------
 
 function SkeletonRow() {
   return (
     <tr className="border-b border-[#2A2A3E]">
-      {[180, 80, 80, 60, 50, 60, 90, 100].map((w, i) => (
+      {[180, 80, 80, 110, 50, 60, 90, 80].map((w, i) => (
         <td key={i} className="px-4 py-3">
-          <div className={`h-3 bg-[#1A1A2E] rounded animate-pulse`} style={{ width: w }} />
+          <div className="h-3 bg-[#1A1A2E] rounded animate-pulse" style={{ width: w }} />
         </td>
       ))}
     </tr>
@@ -234,13 +441,8 @@ const STATUS_TABS = [
 export default function AdminPage() {
   const router = useRouter();
 
-  // Access guard
   const [accessChecked, setAccessChecked] = useState(false);
-
-  // Stats
   const [stats, setStats] = useState<AdminStats | null>(null);
-
-  // Users table
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -249,8 +451,7 @@ export default function AdminPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-
-  // Confirm modal state
+  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [confirm, setConfirm] = useState<{
     title: string;
     message: string;
@@ -259,42 +460,28 @@ export default function AdminPage() {
     onConfirm: () => void;
   } | null>(null);
 
-  // ── Access guard ──────────────────────────────────────────────────────────
   useEffect(() => {
     usersApi.me()
-      .then((u) => {
-        if (!u.is_admin) {
-          router.replace("/dashboard");
-        } else {
-          setAccessChecked(true);
-        }
-      })
+      .then((u) => { if (!u.is_admin) router.replace("/dashboard"); else setAccessChecked(true); })
       .catch(() => router.replace("/dashboard"));
   }, [router]);
 
-  // ── Stats ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!accessChecked) return;
     adminApi.stats().then(setStats).catch(() => {});
   }, [accessChecked]);
 
-  // ── Debounce search ───────────────────────────────────────────────────────
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(t);
   }, [search]);
 
-  // ── Users list ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!accessChecked) return;
     setTableLoading(true);
     adminApi
       .users({ search: debouncedSearch || undefined, status: statusFilter, page, limit: 20 })
-      .then((d: AdminUserList) => {
-        setUsers(d.users);
-        setTotal(d.total);
-        setPages(d.pages);
-      })
+      .then((d: AdminUserList) => { setUsers(d.users); setTotal(d.total); setPages(d.pages); })
       .catch(() => {})
       .finally(() => setTableLoading(false));
   }, [accessChecked, debouncedSearch, statusFilter, page]);
@@ -303,17 +490,12 @@ export default function AdminPage() {
     setTableLoading(true);
     adminApi
       .users({ search: debouncedSearch || undefined, status: statusFilter, page, limit: 20 })
-      .then((d: AdminUserList) => {
-        setUsers(d.users);
-        setTotal(d.total);
-        setPages(d.pages);
-      })
+      .then((d: AdminUserList) => { setUsers(d.users); setTotal(d.total); setPages(d.pages); })
       .catch(() => {})
       .finally(() => setTableLoading(false));
     adminApi.stats().then(setStats).catch(() => {});
   }
 
-  // ── Actions ───────────────────────────────────────────────────────────────
   function handleResetTrial(user: AdminUser) {
     setConfirm({
       title: "Reset trial",
@@ -342,7 +524,6 @@ export default function AdminPage() {
     });
   }
 
-  // ── Loading skeleton ──────────────────────────────────────────────────────
   if (!accessChecked) {
     return (
       <div className="space-y-6 max-w-7xl">
@@ -359,61 +540,30 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-6 max-w-7xl">
-      {/* Header */}
       <div className="flex items-center gap-3">
         <Shield className="w-5 h-5 text-rose-400" />
         <h1 className="text-2xl font-semibold text-white tracking-tight">Admin</h1>
       </div>
 
-      {/* ── Stats grid ── */}
+      {/* Stats grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        <KpiCard
-          icon={Users}
-          label="Total Users"
-          value={stats?.total_users ?? "—"}
-          color="bg-indigo-500/10 text-indigo-400"
-        />
-        <KpiCard
-          icon={CreditCard}
-          label="Active Subs"
-          value={stats?.active_subscriptions ?? "—"}
-          color="bg-emerald-500/10 text-emerald-400"
-        />
-        <KpiCard
-          icon={TrendingUp}
-          label="Trial Users"
-          value={stats?.trial_users ?? "—"}
-          color="bg-blue-500/10 text-blue-400"
-        />
-        <KpiCard
-          icon={AlertCircle}
-          label="Expired Trials"
-          value={stats?.expired_trials ?? "—"}
-          color="bg-rose-500/10 text-rose-400"
-        />
+        <KpiCard icon={Users} label="Total Users" value={stats?.total_users ?? "—"} color="bg-indigo-500/10 text-indigo-400" />
+        <KpiCard icon={CreditCard} label="Active Subs" value={stats?.active_subscriptions ?? "—"} color="bg-emerald-500/10 text-emerald-400" />
+        <KpiCard icon={TrendingUp} label="Trial Users" value={stats?.trial_users ?? "—"} color="bg-blue-500/10 text-blue-400" />
+        <KpiCard icon={AlertCircle} label="Expired Trials" value={stats?.expired_trials ?? "—"} color="bg-rose-500/10 text-rose-400" />
         <KpiCard
           icon={Euro}
           label="MRR"
-          value={
-            stats
-              ? `€${stats.mrr.toLocaleString("fr-FR", { minimumFractionDigits: 0 })}`
-              : "—"
-          }
+          value={stats ? `€${stats.mrr.toLocaleString("fr-FR", { minimumFractionDigits: 0 })}` : "—"}
           color="bg-amber-500/10 text-amber-400"
         />
-        <KpiCard
-          icon={UserPlus}
-          label="New This Week"
-          value={stats?.new_users_this_week ?? "—"}
-          color="bg-violet-500/10 text-violet-400"
-        />
+        <KpiCard icon={UserPlus} label="New This Week" value={stats?.new_users_this_week ?? "—"} color="bg-violet-500/10 text-violet-400" />
       </div>
 
-      {/* ── Users table ── */}
+      {/* Users table */}
       <div className="bg-[#111118] border border-[#2A2A3E] rounded-xl overflow-hidden">
         {/* Toolbar */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-4 border-b border-[#2A2A3E]">
-          {/* Search */}
           <div className="relative flex-1 max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
             <input
@@ -424,36 +574,31 @@ export default function AdminPage() {
               className="w-full pl-8 pr-3 py-2 bg-[#0A0A0F] border border-[#2A2A3E] rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500/60 transition"
             />
           </div>
-
-          {/* Status tabs */}
           <div className="flex items-center gap-1 flex-wrap">
             {STATUS_TABS.map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => { setStatusFilter(tab.key); setPage(1); }}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  statusFilter === tab.key
-                    ? "bg-indigo-600 text-white"
-                    : "text-slate-400 hover:text-white hover:bg-[#1A1A2E]"
+                  statusFilter === tab.key ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-white hover:bg-[#1A1A2E]"
                 }`}
               >
                 {tab.label}
               </button>
             ))}
           </div>
-
           <p className="text-xs text-slate-500 ml-auto whitespace-nowrap">{total} user{total !== 1 ? "s" : ""}</p>
         </div>
 
-        {/* Table (horizontally scrollable on mobile) */}
+        {/* Table */}
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px] text-sm">
+          <table className="w-full min-w-[860px] text-sm">
             <thead>
               <tr className="border-b border-[#2A2A3E] text-xs text-slate-500 uppercase tracking-wider">
                 <th className="text-left px-4 py-3 font-medium">User</th>
                 <th className="text-left px-4 py-3 font-medium">Plan</th>
                 <th className="text-left px-4 py-3 font-medium">Status</th>
-                <th className="text-right px-4 py-3 font-medium">Trial days</th>
+                <th className="text-left px-4 py-3 font-medium">Expires</th>
                 <th className="text-right px-4 py-3 font-medium">Locs</th>
                 <th className="text-right px-4 py-3 font-medium">Reviews</th>
                 <th className="text-left px-4 py-3 font-medium">Joined</th>
@@ -477,9 +622,9 @@ export default function AdminPage() {
                   <UserRow
                     key={u.id}
                     user={u}
+                    onEdit={() => setEditingUser(u)}
                     onResetTrial={() => handleResetTrial(u)}
                     onDelete={() => handleDelete(u)}
-                    onPlanChanged={refreshUsers}
                   />
                 ))
               )}
@@ -498,9 +643,7 @@ export default function AdminPage() {
               <ChevronLeft className="w-3.5 h-3.5" />
               Previous
             </button>
-            <span className="text-xs text-slate-500">
-              Page {page} of {pages}
-            </span>
+            <span className="text-xs text-slate-500">Page {page} of {pages}</span>
             <button
               onClick={() => setPage((p) => Math.min(pages, p + 1))}
               disabled={page === pages}
@@ -512,6 +655,15 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+
+      {/* Edit modal */}
+      {editingUser && (
+        <EditUserModal
+          user={editingUser}
+          onClose={() => setEditingUser(null)}
+          onSaved={() => { setEditingUser(null); refreshUsers(); }}
+        />
+      )}
 
       {/* Confirm modal */}
       {confirm && (
@@ -529,32 +681,47 @@ export default function AdminPage() {
 }
 
 // ---------------------------------------------------------------------------
-// User table row (extracted to avoid inline closure re-renders)
+// User table row
 // ---------------------------------------------------------------------------
 
 function UserRow({
   user,
+  onEdit,
   onResetTrial,
   onDelete,
-  onPlanChanged,
 }: {
   user: AdminUser;
+  onEdit: () => void;
   onResetTrial: () => void;
   onDelete: () => void;
-  onPlanChanged: () => void;
 }) {
   const initials = (user.name || user.email).slice(0, 2).toUpperCase();
-  const joined = new Date(user.created_at).toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  const joined = fmtDate(user.created_at);
 
-  // Determine real display status (expired trials show as expired)
   const displayStatus =
     user.subscription_status === "trialing" && !user.is_trial
       ? "past_due"
       : user.subscription_status;
+
+  // Expires column: trial_end for trialing, subscription_end for active
+  let expiresContent: React.ReactNode;
+  if (user.subscription_status === "trialing") {
+    expiresContent = user.trial_end ? (
+      <span className={`text-xs ${user.is_trial && (user.trial_days_remaining ?? 99) <= 3 ? "text-amber-400" : "text-slate-400"}`}>
+        {fmtDate(user.trial_end)}
+      </span>
+    ) : (
+      <span className="text-xs text-slate-600">—</span>
+    );
+  } else if (user.subscription_status === "active") {
+    expiresContent = user.subscription_end ? (
+      <span className="text-xs text-slate-400">{fmtDate(user.subscription_end)}</span>
+    ) : (
+      <span className="text-xs text-emerald-500 font-medium">∞</span>
+    );
+  } else {
+    expiresContent = <span className="text-xs text-slate-600">—</span>;
+  }
 
   return (
     <tr className="border-b border-[#2A2A3E]/60 hover:bg-[#0A0A0F]/40 transition-colors">
@@ -588,16 +755,8 @@ function UserRow({
         <StatusBadge status={displayStatus} />
       </td>
 
-      {/* Trial days */}
-      <td className="px-4 py-3 text-right">
-        {user.is_trial && user.trial_days_remaining !== null ? (
-          <span className={`text-xs font-medium ${user.trial_days_remaining <= 3 ? "text-amber-400" : "text-slate-300"}`}>
-            {user.trial_days_remaining}d
-          </span>
-        ) : (
-          <span className="text-xs text-slate-600">—</span>
-        )}
-      </td>
+      {/* Expires */}
+      <td className="px-4 py-3">{expiresContent}</td>
 
       {/* Locations */}
       <td className="px-4 py-3 text-right">
@@ -617,7 +776,6 @@ function UserRow({
       {/* Actions */}
       <td className="px-4 py-3">
         <div className="flex items-center justify-end gap-1.5">
-          {/* Reset trial */}
           <button
             onClick={onResetTrial}
             title="Reset trial"
@@ -625,15 +783,13 @@ function UserRow({
           >
             <RotateCcw className="w-3 h-3" />
           </button>
-
-          {/* Change plan */}
-          <ChangePlanDropdown
-            userId={user.id}
-            currentPlan={user.plan_name}
-            onDone={onPlanChanged}
-          />
-
-          {/* Delete */}
+          <button
+            onClick={onEdit}
+            title="Edit subscription"
+            className="flex items-center justify-center w-7 h-7 rounded-md bg-[#1A1A2E] border border-[#2A2A3E] text-slate-400 hover:text-white hover:border-indigo-500/40 transition"
+          >
+            <Pencil className="w-3 h-3" />
+          </button>
           {!user.is_admin && (
             <button
               onClick={onDelete}

@@ -2,6 +2,7 @@
 import uuid
 import logging
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -208,6 +209,14 @@ async def list_users(
         if is_trial and sub and sub.trial_end:
             trial_days_remaining = max(0, (sub.trial_end - now).days)
 
+        # Expiry date: trial_end for trialing, current_period_end for active
+        subscription_end: str | None = None
+        if sub:
+            if sub.status == "trialing" and sub.trial_end:
+                subscription_end = sub.trial_end.isoformat()
+            elif sub.status == "active" and sub.current_period_end:
+                subscription_end = sub.current_period_end.isoformat()
+
         users_out.append({
             "id": str(u.id),
             "email": u.email,
@@ -217,6 +226,10 @@ async def list_users(
             "subscription_status": (sub.status if sub else "none"),
             "is_trial": is_trial,
             "trial_days_remaining": trial_days_remaining,
+            "trial_end": sub.trial_end.isoformat() if (sub and sub.trial_end) else None,
+            "subscription_start": sub.current_period_start.isoformat() if (sub and sub.current_period_start) else None,
+            "subscription_end": subscription_end,
+            "ai_responses_limit": sub.responses_limit_override if sub else None,
             "created_at": u.created_at.isoformat(),
             "last_seen_at": None,
             "locations_count": row.locations_count or 0,
@@ -322,6 +335,98 @@ async def change_plan(
         user_id, body.plan, body.reason,
     )
     return {"changed": True, "plan": body.plan}
+
+
+# ---------------------------------------------------------------------------
+# PUT /admin/users/{user_id}  — full subscription edit
+# ---------------------------------------------------------------------------
+
+class EditUserBody(BaseModel):
+    plan: Optional[str] = None
+    status: Optional[str] = None
+    subscription_start: Optional[datetime] = None
+    subscription_end: Optional[datetime] = None   # None = no expiry (unlimited)
+    trial_end: Optional[datetime] = None          # required when status="trialing"
+    ai_responses_limit: Optional[int] = None      # None = plan default, -1 = unlimited
+
+
+_VALID_PLANS = ("starter", "pro", "agency")
+_VALID_STATUSES = ("active", "trialing", "expired", "cancelled", "past_due")
+
+
+@router.put("/users/{user_id}")
+async def edit_user(
+    user_id: str,
+    body: EditUserBody,
+    _: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    # Validate inputs
+    if body.plan is not None and body.plan not in _VALID_PLANS:
+        raise HTTPException(400, f"plan must be one of {_VALID_PLANS}")
+    if body.status is not None and body.status not in _VALID_STATUSES:
+        raise HTTPException(400, f"status must be one of {_VALID_STATUSES}")
+    if body.status == "trialing" and body.trial_end is None:
+        raise HTTPException(400, "trial_end is required when status is 'trialing'")
+
+    try:
+        uid = uuid.UUID(user_id)
+    except ValueError:
+        raise HTTPException(400, "Invalid user_id")
+
+    user = await db.get(User, uid)
+    if not user:
+        raise HTTPException(404, "User not found")
+
+    result = await db.execute(select(Subscription).where(Subscription.user_id == uid))
+    sub = result.scalar_one_or_none()
+    if not sub:
+        raise HTTPException(404, "Subscription not found")
+
+    now = datetime.now(timezone.utc)
+
+    # ── Plan ──────────────────────────────────────────────────────────────────
+    if body.plan is not None:
+        plan_result = await db.execute(select(Plan).where(Plan.id == body.plan))
+        if plan_result.scalar_one_or_none() is None:
+            raise HTTPException(400, "Plan not found in database")
+        sub.plan_id = body.plan
+        user.plan = body.plan
+
+    # ── Status ────────────────────────────────────────────────────────────────
+    if body.status is not None:
+        if body.status == "active":
+            sub.status = "active"
+            sub.trial_end = None
+        elif body.status == "trialing":
+            sub.status = "trialing"
+            sub.trial_end = body.trial_end
+        elif body.status == "expired":
+            # Mark as trialing with a past trial_end (immediately expired)
+            sub.status = "trialing"
+            sub.trial_end = now - timedelta(seconds=1)
+        elif body.status in ("cancelled", "past_due"):
+            sub.status = body.status
+            sub.trial_end = None
+
+    # ── Period dates ──────────────────────────────────────────────────────────
+    if body.subscription_start is not None:
+        sub.current_period_start = body.subscription_start
+
+    # subscription_end=None means explicitly unlimited (no expiry)
+    # We always apply this field so the admin can clear the expiry date
+    sub.current_period_end = body.subscription_end
+
+    # ── AI responses override ─────────────────────────────────────────────────
+    # None = clear override (use plan default); -1 = unlimited; N = cap
+    sub.responses_limit_override = body.ai_responses_limit
+
+    await db.commit()
+    logger.info(
+        "Admin edited user %s — plan=%s status=%s sub_end=%s ai_limit=%s",
+        user_id, body.plan, body.status, body.subscription_end, body.ai_responses_limit,
+    )
+    return {"updated": True}
 
 
 # ---------------------------------------------------------------------------
