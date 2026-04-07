@@ -93,9 +93,15 @@ export default function BillingPage() {
   const subStatus = sub?.status || "none";
   const badge = STATUS_CONFIG[subStatus] ?? STATUS_CONFIG.none;
 
+  // ai_responses_limit: null = unlimited, N = cap; fall back to responses_limit (0 = unlimited)
+  const effectiveLimit: number | null =
+    usage?.ai_responses_limit !== undefined
+      ? usage.ai_responses_limit
+      : (usage?.responses_limit === 0 ? null : (usage?.responses_limit ?? null));
+
   const usagePct =
-    usage && usage.responses_limit > 0
-      ? Math.min(100, Math.round((usage.responses_this_month / usage.responses_limit) * 100))
+    usage && effectiveLimit !== null
+      ? Math.min(100, Math.round((usage.responses_this_month / effectiveLimit) * 100))
       : 0;
 
   const trialDays = subStatus === "trialing" && sub?.trial_end ? daysUntil(sub.trial_end) : 0;
@@ -169,10 +175,10 @@ export default function BillingPage() {
                 <div className="flex justify-between text-xs text-slate-400">
                   <span>AI responses this month</span>
                   <span className="font-medium text-white">
-                    {usage.responses_this_month} / {usage.responses_limit === 0 ? "∞" : usage.responses_limit}
+                    {usage.responses_this_month} / {effectiveLimit === null ? "∞" : effectiveLimit}
                   </span>
                 </div>
-                {usage.responses_limit > 0 && (
+                {effectiveLimit !== null && (
                   <div className="w-full h-2 bg-[#1A1A2E] rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all duration-500 ${

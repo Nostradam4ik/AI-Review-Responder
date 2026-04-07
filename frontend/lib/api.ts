@@ -73,6 +73,7 @@ export interface BillingStatus {
   usage: {
     responses_this_month: number;
     responses_limit: number;
+    ai_responses_limit?: number | null;
   };
   is_trial?: boolean;
   is_trial_expired?: boolean;
