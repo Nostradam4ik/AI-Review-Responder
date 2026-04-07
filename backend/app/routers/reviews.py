@@ -161,7 +161,7 @@ def _build_review_query(location_ids, status=None, location_id=None, date_from=N
     if status:
         query = query.where(Review.status == status)
     if location_id:
-        query = query.where(Review.location_id == location_id)
+        query = query.where(Review.location_id == uuid.UUID(location_id))
     if date_from:
         query = query.where(Review.review_date >= date_from)
     if date_to:

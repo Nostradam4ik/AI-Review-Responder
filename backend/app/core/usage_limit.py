@@ -68,14 +68,8 @@ async def check_usage_limit(user: User, action_type: str, db: AsyncSession) -> N
         )
 
     # Active trial → ALL features unlocked, no usage limits
+    # ai_service.py already writes the UsageLog for ai_generate; skip double-logging.
     if sub.status == "trialing":
-        log = UsageLog(
-            user_id=user.id,
-            action_type=action_type,
-            billing_period=now.strftime("%Y-%m"),
-        )
-        db.add(log)
-        await db.flush()
         return
 
     # Manually set expiry on active subscription

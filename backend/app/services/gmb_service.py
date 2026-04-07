@@ -104,7 +104,7 @@ class GMBService:
         new_reviews = []
         next_page_token = None
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             while True:
                 params: dict = {"pageSize": 50}
                 if next_page_token:

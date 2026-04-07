@@ -130,7 +130,8 @@ async def publish_response(
 
     response.published_at = datetime.now(timezone.utc)
     review.status = "responded"
-
+    await db.commit()
+    await db.refresh(response)
     return response
 
 

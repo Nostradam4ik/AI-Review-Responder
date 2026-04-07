@@ -143,7 +143,8 @@ async def list_users(
     # Build filter conditions
     conditions = [User.is_active == True]  # noqa: E712
     if search:
-        ilike = f"%{search}%"
+        search_escaped = search.replace("%", r"\%").replace("_", r"\_")
+        ilike = f"%{search_escaped}%"
         conditions.append(
             or_(User.email.ilike(ilike), User.business_name.ilike(ilike))
         )
@@ -413,9 +414,8 @@ async def edit_user(
     if body.subscription_start is not None:
         sub.current_period_start = body.subscription_start
 
-    # subscription_end=None means explicitly unlimited (no expiry)
-    # We always apply this field so the admin can clear the expiry date
-    sub.current_period_end = body.subscription_end
+    if body.subscription_end is not None:
+        sub.current_period_end = body.subscription_end
 
     # ── AI responses override ─────────────────────────────────────────────────
     # None = clear override (use plan default); -1 = unlimited; N = cap

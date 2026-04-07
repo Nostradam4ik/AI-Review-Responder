@@ -96,5 +96,5 @@ async def sync_locations(
             existing.name = loc_data["name"]
             existing.address = loc_data["address"]
 
-    await db.flush()
+    await db.commit()
     return {"synced": len(gmb_locations), "new": len(synced), "locations": synced}

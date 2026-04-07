@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timezone, timedelta
 from urllib.parse import urlencode
 
@@ -128,13 +129,19 @@ async def callback(
         await db.flush()
         await send_welcome_email(user.email, user.business_name or user.email)
 
-    # Issue our own JWT
+    # Issue our own JWT and set as HttpOnly cookie to avoid leaking into
+    # browser history, referrer headers, and server access logs.
     jwt_token = create_access_token({"sub": str(user.id)})
-
-    # Redirect to frontend with token
-    return RedirectResponse(
-        f"{settings.FRONTEND_URL}/auth/callback?token={jwt_token}"
+    response = RedirectResponse(f"{settings.FRONTEND_URL}/auth/callback")
+    response.set_cookie(
+        key="access_token",
+        value=jwt_token,
+        httponly=True,
+        secure=settings.ENVIRONMENT != "development",
+        samesite="lax",
+        max_age=60 * 60 * 24 * 7,  # 7 days
     )
+    return response
 
 
 @router.get("/me")
@@ -325,7 +332,11 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
     if payload:
         # payload is the user_id UUID
-        result = await db.execute(select(User).where(User.id == payload))
+        try:
+            uid = uuid.UUID(payload)
+        except ValueError:
+            return {"ok": True}
+        result = await db.execute(select(User).where(User.id == uid))
         user = result.scalar_one_or_none()
         if user and not user.telegram_chat_id:
             user.telegram_chat_id = chat_id

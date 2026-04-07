@@ -61,6 +61,16 @@ async def create_checkout_session(user: User, plan_id: str, db: AsyncSession) ->
             metadata={"user_id": str(user.id)},
         )
         customer_id = customer["id"]
+        if sub:
+            sub.stripe_customer_id = customer_id
+        else:
+            db.add(Subscription(
+                user_id=user.id,
+                stripe_customer_id=customer_id,
+                plan_id=plan_id,
+                status="trialing",
+            ))
+        await db.commit()
 
     session = await asyncio.to_thread(
         stripe.checkout.Session.create,
@@ -178,6 +188,8 @@ async def handle_webhook(payload: bytes, sig_header: str, db: AsyncSession) -> N
     """Process incoming Stripe webhook event."""
     if not settings.STRIPE_WEBHOOK_SECRET:
         raise HTTPException(400, "Webhook secret not configured")
+
+    _init_stripe()
 
     try:
         event = stripe.Webhook.construct_event(
