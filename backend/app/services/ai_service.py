@@ -50,6 +50,13 @@ async def generate_and_save(
         existing.was_edited = False
         existing.final_text = None
         existing.published_at = None
+        if location:
+            db.add(UsageLog(
+                user_id=location.user_id,
+                action_type="ai_generate",
+                billing_period=datetime.now(timezone.utc).strftime("%Y-%m"),
+            ))
+            await db.flush()
         return existing
 
     response = Response(

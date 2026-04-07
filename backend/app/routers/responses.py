@@ -92,6 +92,8 @@ async def edit_response(
 
     response.final_text = body.final_text
     response.was_edited = True
+    await db.commit()
+    await db.refresh(response)
     return response
 
 
