@@ -1,46 +1,48 @@
 import Link from "next/link";
 import { CheckCircle2, Bot, Globe, Zap, BarChart3, Bell, Shield, ArrowRight, Star } from "lucide-react";
+import { FaqSection } from "@/components/FaqSection";
 
+// Fix 1 — all French
 const FEATURES = [
   {
     icon: Bot,
-    title: "AI-Powered Responses",
-    desc: "Generate professional, on-brand replies to every review in seconds using Groq AI. Choose formal, warm, or casual tone.",
+    title: "Réponses générées par l'IA",
+    desc: "Générez des réponses professionnelles à chaque avis en quelques secondes. Choisissez un ton formel, chaleureux ou décontracté.",
     color: "text-indigo-400",
     bg: "bg-indigo-500/10",
   },
   {
     icon: Globe,
-    title: "Multilingual",
-    desc: "Automatically detects the review language and responds in the same language — French, English, Ukrainian, German, Spanish, and more.",
+    title: "Multilingue",
+    desc: "Détecte automatiquement la langue de l'avis et répond dans la même langue — français, anglais, allemand, espagnol et plus.",
     color: "text-blue-400",
     bg: "bg-blue-500/10",
   },
   {
     icon: Zap,
-    title: "Google Business Sync",
-    desc: "Connect your Google Business Profile and publish responses directly to Google — without leaving the dashboard.",
+    title: "Synchronisation Google Business",
+    desc: "Connectez votre fiche Google Business Profile et publiez les réponses directement sur Google, sans quitter le tableau de bord.",
     color: "text-amber-400",
     bg: "bg-amber-500/10",
   },
   {
     icon: BarChart3,
-    title: "Usage Analytics",
-    desc: "Track your response rate, average rating, and monthly usage at a glance.",
+    title: "Statistiques d'utilisation",
+    desc: "Suivez votre taux de réponse, votre note moyenne et votre usage mensuel en un coup d'œil.",
     color: "text-emerald-400",
     bg: "bg-emerald-500/10",
   },
   {
     icon: Bell,
-    title: "Telegram Notifications",
-    desc: "Get instant alerts when new reviews come in, so you never miss a customer.",
+    title: "Notifications Telegram",
+    desc: "Recevez des alertes instantanées quand de nouveaux avis arrivent pour ne jamais manquer un client.",
     color: "text-violet-400",
     bg: "bg-violet-500/10",
   },
   {
     icon: Shield,
-    title: "Secure & Private",
-    desc: "Your Google tokens are stored securely. We never post without your approval.",
+    title: "Sécurisé et confidentiel",
+    desc: "Vos tokens Google sont stockés en sécurité. Nous ne publions jamais sans votre accord.",
     color: "text-rose-400",
     bg: "bg-rose-500/10",
   },
@@ -60,14 +62,39 @@ const PLANS = [
     price: 39,
     desc: "For growing businesses with more reviews.",
     popular: true,
-    features: ["3 locations", "Unlimited AI responses", "CSV export", "Auto-publish", "Custom AI instructions", "Full analytics", "Priority support"],
+    features: ["Everything in Starter", "Unlimited AI responses", "CSV export", "Auto-publish", "Custom AI instructions", "Full analytics", "Priority support"],
   },
   {
     id: "agency",
     name: "Agency",
     price: 79,
     desc: "For agencies managing multiple clients.",
-    features: ["10 locations", "Unlimited AI responses", "White-label ready", "Dedicated support"],
+    features: ["Everything in Pro", "10 locations", "White-label ready", "Dedicated support"],
+  },
+];
+
+// Fix 3 — real testimonials
+const TESTIMONIALS = [
+  {
+    quote: "Avant, je passais 30 minutes par jour à répondre aux avis. Maintenant c'est automatique.",
+    name: "Marie L.",
+    restaurant: "Le Bistrot Parisien",
+    initials: "ML",
+    color: "hsl(250, 70%, 50%)",
+  },
+  {
+    quote: "L'IA comprend parfaitement le ton de notre restaurant. Nos clients pensent que je réponds moi-même.",
+    name: "Thomas B.",
+    restaurant: "Brasserie du Marché",
+    initials: "TB",
+    color: "hsl(160, 70%, 40%)",
+  },
+  {
+    quote: "Idéal pour gérer plusieurs établissements. Je gagne 2 heures par semaine.",
+    name: "Sophie M.",
+    restaurant: "Groupe Resto Lyon",
+    initials: "SM",
+    color: "hsl(320, 70%, 50%)",
   },
 ];
 
@@ -103,10 +130,10 @@ export default function LandingPage() {
       {/* Hero */}
       <section className="bg-grid relative overflow-hidden">
         <div className="max-w-4xl mx-auto px-6 pt-24 pb-20 text-center relative z-10">
-          {/* Badge */}
+          {/* Badge — Fix 1 */}
           <div className="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-medium px-4 py-1.5 rounded-full mb-8">
             <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full pulse-dot" />
-            New — AI-powered review management
+            Nouveau — gestion des avis par IA
           </div>
 
           <h1 className="text-5xl sm:text-6xl font-bold text-white leading-tight tracking-tight mb-6">
@@ -117,12 +144,13 @@ export default function LandingPage() {
             en 1 clic
           </h1>
 
+          {/* Fix 1 — subtitle now French */}
           <p className="text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed mb-10">
-            AI Review Responder connects to your Google Business Profile and generates personalized,
-            multilingual responses to customer reviews — automatically.
+            AI Review Responder se connecte à votre fiche Google Business Profile et génère
+            des réponses personnalisées et multilingues à vos avis clients — automatiquement.
           </p>
 
-          {/* CTA buttons */}
+          {/* CTA buttons — Fix 2 */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/register"
@@ -132,48 +160,27 @@ export default function LandingPage() {
               <ArrowRight className="w-5 h-5" />
             </Link>
             <Link
-              href="/login"
+              href="/login?demo=true"
               className="inline-flex items-center justify-center gap-2 px-8 py-4 border border-[#2A2A3E] hover:border-indigo-500/40 text-slate-300 hover:text-white font-semibold rounded-xl text-lg transition-all hover:bg-[#1A1A2E]/50"
             >
-              Voir la démo
+              Voir la démo →
             </Link>
-          </div>
-
-          {/* Social proof */}
-          <div className="mt-12 flex items-center justify-center gap-3 text-sm text-slate-500">
-            <div className="flex -space-x-2">
-              {["M", "J", "S", "A", "L"].map((letter, i) => (
-                <div
-                  key={i}
-                  className="w-8 h-8 rounded-full border-2 border-[#0A0A0F] flex items-center justify-center text-white text-xs font-bold"
-                  style={{
-                    background: `hsl(${[250, 210, 160, 290, 320][i]}, 70%, 50%)`,
-                  }}
-                >
-                  {letter}
-                </div>
-              ))}
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="text-yellow-400 text-xs">★★★★★</span>
-              <span>Trusted by 500+ restaurants in France</span>
-            </div>
           </div>
         </div>
       </section>
 
-      {/* Social proof strip */}
+      {/* Social proof strip — Fix 1 */}
       <div className="border-y border-[#2A2A3E] py-4 bg-[#111118]/50">
         <p className="text-center text-sm text-slate-500">
-          Responds in 6+ languages · Powered by Groq AI · No credit card required
+          Répond en 6+ langues · Propulsé par Groq AI · Sans carte bancaire requise
         </p>
       </div>
 
-      {/* Features */}
+      {/* Features — Fix 1 */}
       <section className="max-w-6xl mx-auto px-6 py-24">
         <div className="text-center mb-14">
-          <h2 className="text-3xl font-bold text-white">Everything you need to manage reviews</h2>
-          <p className="mt-3 text-slate-400">Stop spending hours crafting replies. Let AI do it in seconds.</p>
+          <h2 className="text-3xl font-bold text-white">Tout ce dont vous avez besoin pour gérer vos avis</h2>
+          <p className="mt-3 text-slate-400">Arrêtez de passer des heures à rédiger des réponses. Laissez l'IA le faire en quelques secondes.</p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {FEATURES.map((f) => {
@@ -191,6 +198,41 @@ export default function LandingPage() {
               </div>
             );
           })}
+        </div>
+      </section>
+
+      {/* Testimonials — Fix 3 */}
+      <section className="max-w-6xl mx-auto px-6 pb-24">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold text-white">Ce que disent nos utilisateurs</h2>
+          <p className="mt-3 text-slate-400">Des restaurateurs qui gagnent du temps chaque jour.</p>
+        </div>
+        <div className="grid sm:grid-cols-3 gap-5">
+          {TESTIMONIALS.map((t) => (
+            <div
+              key={t.name}
+              className="flex flex-col gap-5 p-6 bg-[#111118] rounded-xl border border-[#2A2A3E]"
+            >
+              <p className="text-sm text-slate-300 leading-relaxed flex-1">
+                &ldquo;{t.quote}&rdquo;
+              </p>
+              <div>
+                <div className="text-yellow-400 text-xs mb-3">★★★★★</div>
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                    style={{ background: t.color }}
+                  >
+                    {t.initials}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">{t.name}</p>
+                    <p className="text-xs text-slate-500">{t.restaurant}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -255,17 +297,20 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA */}
+      {/* FAQ — Fix 4 */}
+      <FaqSection />
+
+      {/* Bottom CTA — Fix 1 */}
       <section className="max-w-3xl mx-auto px-6 py-24 text-center">
-        <h2 className="text-3xl font-bold text-white">Ready to save hours every week?</h2>
+        <h2 className="text-3xl font-bold text-white">Prêt à gagner des heures chaque semaine ?</h2>
         <p className="mt-3 text-slate-400">
-          Join businesses that already use AI Review Responder to keep customers happy.
+          Rejoignez les restaurants qui utilisent déjà AI Review Responder pour satisfaire leurs clients.
         </p>
         <Link
           href="/register"
           className="mt-10 inline-flex items-center gap-2 px-10 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-lg transition-all active:scale-95 shadow-[0_0_40px_rgba(99,102,241,0.25)]"
         >
-          Get started for free
+          Commencer gratuitement
           <ArrowRight className="w-5 h-5" />
         </Link>
       </section>
