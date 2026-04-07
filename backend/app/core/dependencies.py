@@ -69,6 +69,11 @@ def require_plan_feature(feature: str):
         if sub.status == "trialing":
             return current_user
 
+        # Manually set expiry on active subscription
+        now = datetime.now(timezone.utc)
+        if sub.status == "active" and sub.current_period_end and sub.current_period_end < now:
+            raise HTTPException(status_code=402, detail="subscription_expired")
+
         # Paid subscription → check plan features
         plan_result = await db.execute(select(Plan).where(Plan.id == sub.plan_id))
         plan = plan_result.scalar_one_or_none()

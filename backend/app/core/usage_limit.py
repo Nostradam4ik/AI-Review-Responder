@@ -78,6 +78,14 @@ async def check_usage_limit(user: User, action_type: str, db: AsyncSession) -> N
         await db.flush()
         return
 
+    # Manually set expiry on active subscription
+    now = datetime.now(timezone.utc)
+    if sub.status == "active" and sub.current_period_end and sub.current_period_end < now:
+        raise HTTPException(
+            status_code=402,
+            detail={"error": "subscription_expired", "upgrade_url": "/dashboard/billing"},
+        )
+
     # Paid subscription — get plan
     plan_result = await db.execute(select(Plan).where(Plan.id == sub.plan_id))
     plan = plan_result.scalar_one_or_none()
