@@ -93,15 +93,16 @@ async def check_usage_limit(user: User, action_type: str, db: AsyncSession) -> N
     if plan is None:
         return
 
-    # Monthly response limit: admin override takes precedence over plan default
-    # override=-1 means unlimited; override=N means cap at N; None means use plan
+    # Monthly response limit: admin override takes precedence over plan default.
+    # None = unlimited; -1 override = unlimited; 0 plan default = unlimited.
     override = sub.responses_limit_override
     if override is not None:
-        effective_limit = 0 if override == -1 else override
+        effective_limit = None if override == -1 else override
     else:
-        effective_limit = plan.max_responses_per_month
+        plan_default = plan.max_responses_per_month
+        effective_limit = None if plan_default == 0 else plan_default
 
-    if effective_limit > 0 and action_type in ("ai_generate", "ai_publish"):
+    if effective_limit is not None and action_type in ("ai_generate", "ai_publish"):
         used = await _count_usage_this_month(user.id, action_type, db)
         if used >= effective_limit:
             raise HTTPException(

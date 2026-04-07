@@ -93,6 +93,15 @@ async def create_portal_session(user: User, db: AsyncSession) -> str:
     return session["url"]
 
 
+def _effective_ai_limit(override: int | None, plan) -> int | None:
+    """Return effective monthly AI response limit. None = unlimited."""
+    if override is not None:
+        return None if override == -1 else override
+    if plan is None or plan.max_responses_per_month == 0:
+        return None
+    return plan.max_responses_per_month
+
+
 async def get_billing_status(user: User, db: AsyncSession) -> dict:
     """Return subscription status, plan info, and current month usage."""
     sub_result = await db.execute(select(Subscription).where(Subscription.user_id == user.id))
@@ -155,6 +164,7 @@ async def get_billing_status(user: User, db: AsyncSession) -> dict:
         "usage": {
             "responses_this_month": responses_used,
             "responses_limit": plan.max_responses_per_month if plan else 0,
+            "ai_responses_limit": _effective_ai_limit(sub.responses_limit_override, plan),
         },
         "is_trial": is_trial and trial_active,
         "is_trial_expired": trial_expired,
