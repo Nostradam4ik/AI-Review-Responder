@@ -15,25 +15,31 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        "review_collection_links",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("location_id", UUID(as_uuid=True), sa.ForeignKey("locations.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("slug", sa.String(64), unique=True, nullable=False),
-        sa.Column("google_maps_url", sa.Text, nullable=False),
-        sa.Column("is_active", sa.Boolean, nullable=False, server_default="true"),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-    )
-    op.create_index("ix_review_collection_links_slug", "review_collection_links", ["slug"])
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    existing = inspector.get_table_names()
 
-    op.create_table(
-        "internal_feedback",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("link_id", UUID(as_uuid=True), sa.ForeignKey("review_collection_links.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("rating", sa.Integer, nullable=False),
-        sa.Column("comment", sa.Text),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-    )
+    if "review_collection_links" not in existing:
+        op.create_table(
+            "review_collection_links",
+            sa.Column("id", UUID(as_uuid=True), primary_key=True),
+            sa.Column("location_id", UUID(as_uuid=True), sa.ForeignKey("locations.id", ondelete="CASCADE"), nullable=False),
+            sa.Column("slug", sa.String(64), unique=True, nullable=False),
+            sa.Column("google_maps_url", sa.Text, nullable=False),
+            sa.Column("is_active", sa.Boolean, nullable=False, server_default="true"),
+            sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        )
+        op.create_index("ix_review_collection_links_slug", "review_collection_links", ["slug"])
+
+    if "internal_feedback" not in existing:
+        op.create_table(
+            "internal_feedback",
+            sa.Column("id", UUID(as_uuid=True), primary_key=True),
+            sa.Column("link_id", UUID(as_uuid=True), sa.ForeignKey("review_collection_links.id", ondelete="CASCADE"), nullable=False),
+            sa.Column("rating", sa.Integer, nullable=False),
+            sa.Column("comment", sa.Text),
+            sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        )
 
 
 def downgrade() -> None:
