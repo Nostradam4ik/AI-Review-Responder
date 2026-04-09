@@ -1,20 +1,26 @@
+"""Tests for responses router — generate, edit, publish, and auto-publish."""
 import uuid
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import pytest_asyncio
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.location import Location
+from app.models.response import Response
 from app.models.review import Review
 
 
-@pytest.fixture
+# ── Fixtures ──────────────────────────────────────────────────────────────────
+
+@pytest_asyncio.fixture
 async def location(db_session: AsyncSession, test_user):
     loc = Location(
         id=uuid.uuid4(),
         user_id=test_user.id,
-        gmb_location_id="accounts/123/locations/456",
+        gmb_location_id=f"accounts/123/locations/{uuid.uuid4().hex[:8]}",
         name="Test Café",
         address="1 Rue de la Paix, Paris",
         is_active=True,
@@ -24,12 +30,12 @@ async def location(db_session: AsyncSession, test_user):
     return loc
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def review(db_session: AsyncSession, location):
     rv = Review(
         id=uuid.uuid4(),
         location_id=location.id,
-        gmb_review_id="reviews/abc123",
+        gmb_review_id=f"reviews/{uuid.uuid4().hex[:8]}",
         author_name="Bob",
         rating=4,
         comment="Very good, but could be better.",
@@ -41,47 +47,86 @@ async def review(db_session: AsyncSession, location):
     return rv
 
 
-@pytest.mark.asyncio
-async def test_generate_response(client: AsyncClient, auth_headers, review):
-    """Generate AI response — LLM is mocked."""
-    with patch("app.services.ai_service.get_llm_provider") as mock_factory:
-        mock_provider = AsyncMock()
-        mock_provider.generate_response = AsyncMock(return_value="Thank you for your feedback, Bob!")
-        mock_factory.return_value = mock_provider
+def _mock_llm_provider(text: str = "Thank you for your review!"):
+    provider = MagicMock()
+    provider.MODEL = "test-model"
+    provider.generate_response = AsyncMock(return_value=text)
+    return provider
 
-        response = await client.post(
+
+# ── generate ──────────────────────────────────────────────────────────────────
+
+async def test_generate_response(client: AsyncClient, auth_headers, review, trial_subscription):
+    """Generate AI response — LLM is mocked, returns draft."""
+    with patch("app.services.ai_service.get_llm_provider", return_value=_mock_llm_provider("Great draft!")):
+        resp = await client.post(
             "/responses/generate",
             json={"review_id": str(review.id), "tone": "warm"},
             headers=auth_headers,
         )
 
-    assert response.status_code == 200
-    data = response.json()
-    assert data["ai_draft"] == "Thank you for your feedback, Bob!"
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["ai_draft"] == "Great draft!"
     assert data["tone_used"] == "warm"
     assert data["published_at"] is None
+    assert data["model_used"] == "test-model"
 
 
-@pytest.mark.asyncio
-async def test_generate_response_not_found(client: AsyncClient, auth_headers):
+async def test_generate_response_not_found(client: AsyncClient, auth_headers, trial_subscription):
     """Generate for unknown review → 404."""
-    with patch("app.services.ai_service.get_llm_provider"):
-        response = await client.post(
+    with patch("app.services.ai_service.get_llm_provider", return_value=_mock_llm_provider()):
+        resp = await client.post(
             "/responses/generate",
             json={"review_id": str(uuid.uuid4()), "tone": "formal"},
             headers=auth_headers,
         )
-    assert response.status_code == 404
+    assert resp.status_code == 404
 
 
-@pytest.mark.asyncio
-async def test_edit_response(client: AsyncClient, auth_headers, review):
-    """Edit an existing draft."""
-    with patch("app.services.ai_service.get_llm_provider") as mock_factory:
-        mock_provider = AsyncMock()
-        mock_provider.generate_response = AsyncMock(return_value="Original AI draft")
-        mock_factory.return_value = mock_provider
+async def test_generate_response_no_subscription_returns_402(
+    client: AsyncClient,
+    auth_headers,
+    review,
+):
+    """Generate without any subscription → 402 (access gate)."""
+    with patch("app.services.ai_service.get_llm_provider", return_value=_mock_llm_provider()):
+        resp = await client.post(
+            "/responses/generate",
+            json={"review_id": str(review.id), "tone": "warm"},
+            headers=auth_headers,
+        )
+    assert resp.status_code == 402
 
+
+async def test_generate_uses_provider_model_name(
+    client: AsyncClient,
+    auth_headers,
+    review,
+    trial_subscription,
+    db_session: AsyncSession,
+):
+    """model_used is set from provider.MODEL, not a hardcoded string (Bug 5 regression)."""
+    mock_provider = MagicMock()
+    mock_provider.MODEL = "llama-custom-model"
+    mock_provider.generate_response = AsyncMock(return_value="Resp")
+
+    with patch("app.services.ai_service.get_llm_provider", return_value=mock_provider):
+        resp = await client.post(
+            "/responses/generate",
+            json={"review_id": str(review.id), "tone": "warm"},
+            headers=auth_headers,
+        )
+
+    assert resp.status_code == 200
+    assert resp.json()["model_used"] == "llama-custom-model"
+
+
+# ── edit ──────────────────────────────────────────────────────────────────────
+
+async def test_edit_response(client: AsyncClient, auth_headers, review, trial_subscription):
+    """Edit an existing draft — final_text and was_edited are persisted."""
+    with patch("app.services.ai_service.get_llm_provider", return_value=_mock_llm_provider("Original")):
         gen = await client.post(
             "/responses/generate",
             json={"review_id": str(review.id), "tone": "warm"},
@@ -95,20 +140,50 @@ async def test_edit_response(client: AsyncClient, auth_headers, review):
         json={"final_text": "Edited by human"},
         headers=auth_headers,
     )
+
     assert edit.status_code == 200
     assert edit.json()["final_text"] == "Edited by human"
     assert edit.json()["was_edited"] is True
 
 
-@pytest.mark.asyncio
-async def test_publish_response(client: AsyncClient, auth_headers, review):
-    """Publish response to GMB — GMB call is mocked."""
-    # First generate
-    with patch("app.services.ai_service.get_llm_provider") as mock_factory:
-        mock_provider = AsyncMock()
-        mock_provider.generate_response = AsyncMock(return_value="Thanks for visiting!")
-        mock_factory.return_value = mock_provider
+async def test_edit_response_persisted_to_db(
+    client: AsyncClient,
+    auth_headers,
+    review,
+    trial_subscription,
+    db_session: AsyncSession,
+):
+    """Edit response → changes are committed to DB (Bug 3 regression)."""
+    with patch("app.services.ai_service.get_llm_provider", return_value=_mock_llm_provider("Draft")):
+        gen = await client.post(
+            "/responses/generate",
+            json={"review_id": str(review.id), "tone": "warm"},
+            headers=auth_headers,
+        )
 
+    response_id = uuid.UUID(gen.json()["id"])
+
+    await client.put(
+        f"/responses/{response_id}",
+        json={"final_text": "Human edited"},
+        headers=auth_headers,
+    )
+
+    # Re-fetch from DB to confirm commit
+    result = await db_session.execute(
+        select(Response).where(Response.id == response_id)
+    )
+    saved = result.scalar_one_or_none()
+    assert saved is not None
+    assert saved.final_text == "Human edited"
+    assert saved.was_edited is True
+
+
+# ── publish ───────────────────────────────────────────────────────────────────
+
+async def test_publish_response(client: AsyncClient, auth_headers, review, trial_subscription):
+    """Publish response to GMB — mock get_gmb_service (not GMBService)."""
+    with patch("app.services.ai_service.get_llm_provider", return_value=_mock_llm_provider("Thanks!")):
         gen = await client.post(
             "/responses/generate",
             json={"review_id": str(review.id), "tone": "warm"},
@@ -117,26 +192,97 @@ async def test_publish_response(client: AsyncClient, auth_headers, review):
 
     response_id = gen.json()["id"]
 
-    # Then publish
-    with patch("app.routers.responses.GMBService") as MockGMB:
-        instance = MockGMB.return_value
-        instance.publish_response = AsyncMock(return_value=True)
+    mock_gmb = AsyncMock()
+    mock_gmb.publish_response = AsyncMock(return_value=True)
 
-        publish = await client.post(
+    # Patch get_gmb_service in the responses router module
+    with patch("app.routers.responses.get_gmb_service", return_value=mock_gmb):
+        pub = await client.post(
             f"/responses/{response_id}/publish",
             headers=auth_headers,
         )
 
-    assert publish.status_code == 200
-    assert publish.json()["published_at"] is not None
+    assert pub.status_code == 200
+    assert pub.json()["published_at"] is not None
 
 
-@pytest.mark.asyncio
-async def test_get_response_for_review(client: AsyncClient, auth_headers, review):
-    """GET /responses/review/{id} returns None when no draft exists."""
-    response = await client.get(
-        f"/responses/review/{review.id}",
-        headers=auth_headers,
-    )
-    assert response.status_code == 200
-    assert response.json() is None
+async def test_publish_response_no_google_token(
+    client: AsyncClient,
+    auth_headers,
+    review,
+    trial_subscription,
+    test_user,
+):
+    """Publish without Google access token → 400."""
+    test_user.access_token = None
+
+    with patch("app.services.ai_service.get_llm_provider", return_value=_mock_llm_provider("Draft")):
+        gen = await client.post(
+            "/responses/generate",
+            json={"review_id": str(review.id), "tone": "warm"},
+            headers=auth_headers,
+        )
+
+    response_id = gen.json()["id"]
+
+    resp = await client.post(f"/responses/{response_id}/publish", headers=auth_headers)
+    assert resp.status_code == 400
+
+
+async def test_publish_commits_to_db(
+    client: AsyncClient,
+    auth_headers,
+    review,
+    trial_subscription,
+    db_session: AsyncSession,
+):
+    """published_at is committed, not just flushed (Bug 1 regression)."""
+    with patch("app.services.ai_service.get_llm_provider", return_value=_mock_llm_provider("Thanks!")):
+        gen = await client.post(
+            "/responses/generate",
+            json={"review_id": str(review.id), "tone": "warm"},
+            headers=auth_headers,
+        )
+
+    response_id = uuid.UUID(gen.json()["id"])
+
+    mock_gmb = AsyncMock()
+    mock_gmb.publish_response = AsyncMock(return_value=True)
+
+    with patch("app.routers.responses.get_gmb_service", return_value=mock_gmb):
+        await client.post(f"/responses/{response_id}/publish", headers=auth_headers)
+
+    result = await db_session.execute(select(Response).where(Response.id == response_id))
+    saved = result.scalar_one_or_none()
+    assert saved.published_at is not None
+
+    await db_session.refresh(review)
+    assert review.status == "responded"
+
+
+# ── get_response_for_review ───────────────────────────────────────────────────
+
+async def test_get_response_for_review_none(client: AsyncClient, auth_headers, review, trial_subscription):
+    """GET /responses/review/{id} → None when no draft exists."""
+    resp = await client.get(f"/responses/review/{review.id}", headers=auth_headers)
+    assert resp.status_code == 200
+    assert resp.json() is None
+
+
+async def test_get_response_for_review_returns_draft(
+    client: AsyncClient,
+    auth_headers,
+    review,
+    trial_subscription,
+):
+    """GET /responses/review/{id} → returns the draft after generation."""
+    with patch("app.services.ai_service.get_llm_provider", return_value=_mock_llm_provider("Draft text")):
+        await client.post(
+            "/responses/generate",
+            json={"review_id": str(review.id), "tone": "warm"},
+            headers=auth_headers,
+        )
+
+    resp = await client.get(f"/responses/review/{review.id}", headers=auth_headers)
+    assert resp.status_code == 200
+    assert resp.json()["ai_draft"] == "Draft text"
