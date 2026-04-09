@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     STRIPE_PRICE_PRO: str = ""
     STRIPE_PRICE_AGENCY: str = ""
 
+    # Token encryption — generate with:
+    # python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    TOKEN_ENCRYPTION_KEY: str = ""
+
     # Resend (email)
     RESEND_API_KEY: str = ""
     FROM_EMAIL: str = "noreply@yourapp.com"

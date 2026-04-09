@@ -233,6 +233,7 @@ async def list_reviews(
     location_id: str | None = Query(None),
     date_from: datetime | None = Query(None),
     date_to: datetime | None = Query(None),
+    sort: str | None = Query(None, description="Sort order: 'priority' or default (date desc)"),
     limit: int = Query(50, le=200),
     offset: int = Query(0),
     current_user: User = Depends(get_current_user),
@@ -256,8 +257,13 @@ async def list_reviews(
     )
     total = count_result.scalar()
 
-    # Paginate
-    query = query.order_by(Review.review_date.desc()).offset(offset).limit(limit)
+    # Sort
+    if sort == "priority":
+        query = query.order_by(Review.priority_score.desc(), Review.review_date.desc())
+    else:
+        query = query.order_by(Review.review_date.desc())
+
+    query = query.offset(offset).limit(limit)
     result = await db.execute(query)
     reviews = result.scalars().all()
 
@@ -273,6 +279,7 @@ async def list_reviews(
                 "language": r.language,
                 "review_date": r.review_date.isoformat() if r.review_date else None,
                 "status": r.status,
+                "priority_score": r.priority_score,
                 "synced_at": r.synced_at.isoformat(),
             }
             for r in reviews

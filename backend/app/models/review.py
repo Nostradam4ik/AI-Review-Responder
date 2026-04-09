@@ -23,6 +23,7 @@ class Review(Base):
     language: Mapped[str | None] = mapped_column(String(10))
     review_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     status: Mapped[str] = mapped_column(String(20), default="pending")
+    priority_score: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     location: Mapped["Location"] = relationship("Location", back_populates="reviews")

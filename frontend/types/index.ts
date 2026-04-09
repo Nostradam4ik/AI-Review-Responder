@@ -28,7 +28,19 @@ export interface Review {
   language: string | null;
   review_date: string | null;
   status: ReviewStatus;
+  priority_score: number;
   synced_at: string;
+}
+
+export interface CollectionLink {
+  id: string;
+  slug: string;
+  url: string;
+  google_maps_url: string;
+  location_id: string;
+  location_name?: string;
+  is_active: boolean;
+  created_at: string;
 }
 
 export interface ReviewList {

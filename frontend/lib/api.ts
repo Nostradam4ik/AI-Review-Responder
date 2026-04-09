@@ -1,6 +1,6 @@
 import axios from "axios";
 import { getToken, logout } from "./auth";
-import type { Location, ReviewList, Response, Tone } from "@/types";
+import type { CollectionLink, Location, ReviewList, Response, Tone } from "@/types";
 
 export interface UserProfile {
   id: string;
@@ -118,7 +118,7 @@ export const locationsApi = {
 
 // --- Reviews ---
 export const reviewsApi = {
-  list: (params?: { status?: string; location_id?: string; limit?: number; offset?: number; date_from?: string; date_to?: string }) =>
+  list: (params?: { status?: string; location_id?: string; limit?: number; offset?: number; date_from?: string; date_to?: string; sort?: string }) =>
     api.get<ReviewList>("/reviews/", { params }).then((r) => r.data),
   sync: (location_id?: string) =>
     api.post("/reviews/sync", null, { params: { location_id } }).then((r) => r.data),
@@ -212,6 +212,18 @@ export const billingApi = {
   checkout: (plan_id: string) =>
     api.post<{ checkout_url: string }>("/billing/checkout", { plan_id }).then((r) => r.data),
   portal: () => api.post<{ portal_url: string }>("/billing/portal").then((r) => r.data),
+};
+
+// --- Collection Links ---
+export const collectionApi = {
+  create: (location_id: string, google_maps_url: string) =>
+    api.post<CollectionLink>("/collection/links", { location_id, google_maps_url }).then((r) => r.data),
+  list: () =>
+    api.get<{ links: CollectionLink[] }>("/collection/links").then((r) => r.data),
+  stats: (link_id: string) =>
+    api.get<{ link_id: string; total_submissions: number; avg_rating: number; by_rating: Record<string, number> }>(
+      `/collection/links/${link_id}/stats`
+    ).then((r) => r.data),
 };
 
 export default api;

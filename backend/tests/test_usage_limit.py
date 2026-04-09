@@ -1,7 +1,7 @@
 """Tests for check_usage_limit — enforcing trial/plan limits without double-logging."""
 import uuid
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
@@ -263,7 +263,6 @@ async def test_single_ai_generation_creates_exactly_one_usage_log(
     mock_provider.MODEL = "test-model"
     mock_provider.generate_response = AsyncMock(return_value="Great response!")
 
-    from unittest.mock import MagicMock as MM
     with patch("app.services.ai_service.get_llm_provider", return_value=mock_provider):
         from app.services.ai_service import generate_and_save
         await generate_and_save(review.id, db_session, tone="warm")

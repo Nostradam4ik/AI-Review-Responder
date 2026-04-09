@@ -5,6 +5,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.crypto import decrypt_token, encrypt_token
 from app.models.location import Location
 from app.models.review import Review
 
@@ -12,6 +13,26 @@ GMB_BASE_URL = "https://mybusinessbusinessinformation.googleapis.com/v1"
 GMB_REVIEWS_URL = "https://mybusinessreviews.googleapis.com/v1"
 
 logger = logging.getLogger(__name__)
+
+
+def _calc_priority(rating: int, comment: str) -> int:
+    """Return a priority score for a review (0–10).
+
+    10 — 1-star (very negative, needs urgent response)
+    7  — 2-star
+    4  — 3-star
+    2  — 4/5-star with a long comment (>100 chars, worth engaging)
+    0  — 4/5-star with short/no comment
+    """
+    if rating == 1:
+        return 10
+    if rating == 2:
+        return 7
+    if rating == 3:
+        return 4
+    if len(comment or "") > 100:
+        return 2
+    return 0
 
 
 async def refresh_google_token(user, db: AsyncSession) -> None:
@@ -36,7 +57,7 @@ async def refresh_google_token(user, db: AsyncSession) -> None:
                 "grant_type": "refresh_token",
                 "client_id": settings.GOOGLE_CLIENT_ID,
                 "client_secret": settings.GOOGLE_CLIENT_SECRET,
-                "refresh_token": user.refresh_token,
+                "refresh_token": decrypt_token(user.refresh_token),
             },
         )
 
@@ -47,7 +68,7 @@ async def refresh_google_token(user, db: AsyncSession) -> None:
         )
 
     data = resp.json()
-    user.access_token = data["access_token"]
+    user.access_token = encrypt_token(data["access_token"])
     expires_in = data.get("expires_in", 3600)
     user.token_expires_at = now + timedelta(seconds=expires_in)
     await db.commit()
@@ -57,7 +78,7 @@ async def refresh_google_token(user, db: AsyncSession) -> None:
 async def get_gmb_service(user, db: AsyncSession) -> "GMBService":
     """Return a GMBService with a valid access token, refreshing if needed."""
     await refresh_google_token(user, db)
-    return GMBService(user.access_token)
+    return GMBService(decrypt_token(user.access_token))
 
 
 class GMBService:
@@ -147,15 +168,19 @@ class GMBService:
                         except ValueError:
                             review_date = datetime.now(timezone.utc)
 
+                    comment_text = review_data.get("comment", "")
+                    priority_score = _calc_priority(rating, comment_text)
+
                     review = Review(
                         location_id=location.id,
                         gmb_review_id=gmb_review_id,
                         author_name=review_data.get("reviewer", {}).get("displayName"),
                         rating=rating,
-                        comment=review_data.get("comment", ""),
+                        comment=comment_text,
                         language=review_data.get("languageCode", "fr"),
                         review_date=review_date,
                         status="pending",
+                        priority_score=priority_score,
                     )
                     db.add(review)
                     new_reviews.append(review)

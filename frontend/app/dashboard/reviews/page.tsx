@@ -43,7 +43,7 @@ export default function ReviewsPage() {
   const { isTrialExpired } = useSubscription();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [total, setTotal] = useState(0);
-  const [status, setStatus] = useState<ReviewStatus | "all">("all");
+  const [status, setStatus] = useState<ReviewStatus | "all" | "urgent">("all");
   const [dateRange, setDateRange] = useState<DateRange>("all");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -54,11 +54,12 @@ export default function ReviewsPage() {
   const [canCsvExport, setCanCsvExport] = useState(true);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
-  const STATUS_FILTERS: { label: string; value: ReviewStatus | "all" }[] = [
+  const STATUS_FILTERS: { label: string; value: ReviewStatus | "all" | "urgent" }[] = [
     { label: t("all"), value: "all" },
     { label: t("pending"), value: "pending" },
     { label: t("responded"), value: "responded" },
     { label: t("ignored"), value: "ignored" },
+    { label: "🔥 Urgent", value: "urgent" },
   ];
 
   const fetchReviews = useCallback(async () => {
@@ -66,7 +67,8 @@ export default function ReviewsPage() {
     try {
       const bounds = getDateBounds(dateRange);
       const data = await reviewsApi.list({
-        status: status === "all" ? undefined : status,
+        // "urgent" is client-side only — fetch all, filter below
+        status: status === "all" || status === "urgent" ? undefined : status,
         limit: 200,
         ...bounds,
       });
@@ -92,13 +94,20 @@ export default function ReviewsPage() {
     fetchReviews();
   }, [fetchReviews]);
 
+  const urgentCount = useMemo(
+    () => reviews.filter((r) => (r.priority_score ?? 0) >= 7).length,
+    [reviews]
+  );
+
   const filtered = useMemo(() => {
-    if (!search.trim()) return reviews;
+    let list = reviews;
+    if (status === "urgent") list = list.filter((r) => (r.priority_score ?? 0) >= 7);
+    if (!search.trim()) return list;
     const q = search.toLowerCase();
-    return reviews.filter(
+    return list.filter(
       (r) => r.author_name?.toLowerCase().includes(q) || r.comment?.toLowerCase().includes(q)
     );
-  }, [reviews, search]);
+  }, [reviews, search, status]);
 
   const handleSync = async () => {
     setSyncing(true);
@@ -175,13 +184,20 @@ export default function ReviewsPage() {
             <button
               key={f.value}
               onClick={() => setStatus(f.value)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all active:scale-95 ${
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all active:scale-95 flex items-center gap-1.5 ${
                 status === f.value
                   ? "bg-indigo-600 text-white"
                   : "bg-[#1A1A2E] text-slate-400 hover:text-white border border-[#2A2A3E] hover:border-indigo-500/30"
               }`}
             >
               {f.label}
+              {f.value === "urgent" && urgentCount > 0 && (
+                <span className={`text-xs rounded-full px-1.5 py-0.5 font-semibold ${
+                  status === "urgent" ? "bg-white/20 text-white" : "bg-red-500/20 text-red-400"
+                }`}>
+                  {urgentCount}
+                </span>
+              )}
             </button>
           ))}
         </div>

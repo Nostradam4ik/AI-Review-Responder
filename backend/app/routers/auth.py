@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.core.crypto import encrypt_token
 from app.core.security import (
     create_access_token,
     create_email_token,
@@ -109,8 +110,9 @@ async def callback(
         )
         db.add(user)
 
-    user.access_token = access_token
-    user.refresh_token = refresh_token or user.refresh_token
+    user.access_token = encrypt_token(access_token)
+    if refresh_token:
+        user.refresh_token = encrypt_token(refresh_token)
     user.token_expires_at = datetime.fromtimestamp(token_expires_at, tz=timezone.utc)
     user.google_id = google_id
 
