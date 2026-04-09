@@ -26,8 +26,18 @@ async def sync_all_reviews() -> None:
     logger.info("Starting scheduled review sync...")
 
     async with async_session() as db:
+        now = datetime.now(timezone.utc)
         result = await db.execute(
-            select(User).where(User.access_token.isnot(None))
+            select(User)
+            .join(Subscription, Subscription.user_id == User.id)
+            .where(
+                User.access_token.isnot(None),
+                Subscription.status.in_(["active", "trialing"]),
+                ~(
+                    (Subscription.status == "trialing") &
+                    (Subscription.trial_end < now)
+                ),
+            )
         )
         user_ids = [u.id for u in result.scalars().all()]
 
