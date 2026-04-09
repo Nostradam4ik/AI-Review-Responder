@@ -93,7 +93,7 @@ async def _sync_user_reviews(user: User, db) -> None:
 
 async def check_trial_expirations() -> None:
     """Daily job: email users whose trial ends in exactly 3 or 1 day."""
-    today = datetime.now(timezone.utc).date()
+    now = datetime.now(timezone.utc)
     remind_days = {1, 3}
     logger.info("Checking trial expirations...")
 
@@ -109,7 +109,7 @@ async def check_trial_expirations() -> None:
         rows = result.all()
 
     for user, sub in rows:
-        days_left = (sub.trial_end.date() - today).days
+        days_left = (sub.trial_end - now).days
         if days_left in remind_days:
             name = user.business_name or user.email
             try:
