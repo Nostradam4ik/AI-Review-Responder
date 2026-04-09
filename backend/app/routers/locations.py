@@ -76,7 +76,10 @@ async def sync_locations(
     synced = []
     for loc_data in gmb_locations:
         result = await db.execute(
-            select(Location).where(Location.gmb_location_id == loc_data["gmb_location_id"])
+            select(Location).where(
+                Location.gmb_location_id == loc_data["gmb_location_id"],
+                Location.user_id == current_user.id,
+            )
         )
         existing = result.scalar_one_or_none()
 

@@ -152,7 +152,7 @@ export const reviewsApi = {
       },
     }).then((r) => r.json()),
   updateStatus: (id: string, status: string) =>
-    api.patch(`/reviews/${id}/status`, null, { params: { status } }).then((r) => r.data),
+    api.patch(`/reviews/${id}/status`, { status }).then((r) => r.data),
 };
 
 // --- Responses ---

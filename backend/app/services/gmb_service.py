@@ -129,6 +129,8 @@ class GMBService:
                     )
                     existing = result.scalar_one_or_none()
                     if existing:
+                        if review_data.get("reviewReply") and existing.status != "responded":
+                            existing.status = "responded"
                         continue
 
                     rating_map = {

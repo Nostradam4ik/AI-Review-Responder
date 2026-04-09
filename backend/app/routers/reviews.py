@@ -5,6 +5,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +17,10 @@ from app.models.user import User
 from app.services.gmb_service import GMBService, get_gmb_service
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
+
+
+class UpdateStatusBody(BaseModel):
+    status: str
 
 
 DEMO_REVIEWS = [
@@ -321,12 +326,12 @@ async def sync_reviews(
 @router.patch("/{review_id}/status")
 async def update_review_status(
     review_id: uuid.UUID,
-    status: str,
+    body: UpdateStatusBody,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Update review status (pending/responded/ignored)."""
-    if status not in ("pending", "responded", "ignored"):
+    if body.status not in ("pending", "responded", "ignored"):
         raise HTTPException(status_code=400, detail="Invalid status")
 
     review = await db.get(Review, review_id)
@@ -338,7 +343,7 @@ async def update_review_status(
     if location is None or location.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    review.status = status
+    review.status = body.status
     await db.commit()
     await db.refresh(review)
-    return {"id": str(review_id), "status": status}
+    return {"id": str(review_id), "status": body.status}

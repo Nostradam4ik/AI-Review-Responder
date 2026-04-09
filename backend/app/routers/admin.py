@@ -179,6 +179,7 @@ async def list_users(
         select(
             User,
             Subscription,
+            Plan,
             loc_count_sq.label("locations_count"),
             rev_count_sq.label("reviews_count"),
             resp_count_sq.label("responses_count"),
@@ -191,6 +192,7 @@ async def list_users(
         data_stmt = data_stmt.join(Subscription, Subscription.user_id == User.id)
     else:
         data_stmt = data_stmt.outerjoin(Subscription, Subscription.user_id == User.id)
+    data_stmt = data_stmt.outerjoin(Plan, Plan.id == Subscription.plan_id)
     data_stmt = data_stmt.where(*conditions)
 
     rows = (await db.execute(data_stmt)).all()
@@ -199,6 +201,7 @@ async def list_users(
     for row in rows:
         u: User = row.User
         sub: Subscription | None = row.Subscription
+        plan: Plan | None = row.Plan
 
         is_trial = bool(
             sub
@@ -223,7 +226,7 @@ async def list_users(
             "email": u.email,
             "name": u.business_name,
             "avatar_url": None,
-            "plan_name": (sub.plan_id.capitalize() if sub else "Free"),
+            "plan_name": (plan.name if plan else "Free"),
             "subscription_status": (sub.status if sub else "none"),
             "is_trial": is_trial,
             "trial_days_remaining": trial_days_remaining,

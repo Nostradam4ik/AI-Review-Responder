@@ -5,7 +5,7 @@ Uses stripe 7.x module-level API (stripe.api_key).
 import asyncio
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import stripe
 from fastapi import HTTPException
@@ -141,9 +141,6 @@ async def get_billing_status(user: User, db: AsyncSession) -> dict:
     responses_used = usage_result.scalar() or 0
 
     now = datetime.now(timezone.utc)
-    effective_status = sub.status
-    if sub.status == "active" and sub.current_period_end and sub.current_period_end < now:
-        effective_status = "expired"
     is_trial = sub.status == "trialing"
     trial_active = is_trial and sub.trial_end is not None and sub.trial_end > now
     trial_expired = is_trial and (not sub.trial_end or sub.trial_end <= now)
@@ -158,7 +155,7 @@ async def get_billing_status(user: User, db: AsyncSession) -> dict:
 
     return {
         "subscription": {
-            "status": effective_status,
+            "status": sub.status,
             "plan_id": sub.plan_id,
             "trial_end": sub.trial_end.isoformat() if sub.trial_end else None,
             "current_period_end": sub.current_period_end.isoformat() if sub.current_period_end else None,
@@ -271,11 +268,11 @@ async def handle_webhook(payload: bytes, sig_header: str, db: AsyncSession) -> N
             sub.status = "active"
             sub.current_period_start = datetime.fromtimestamp(stripe_sub["current_period_start"], tz=timezone.utc)
             sub.current_period_end = datetime.fromtimestamp(stripe_sub["current_period_end"], tz=timezone.utc)
-            new_period = sub.current_period_start.strftime("%Y-%m")
+            cutoff = datetime.now(timezone.utc) - timedelta(days=90)
             await db.execute(
                 delete(UsageLog).where(
                     UsageLog.user_id == sub.user_id,
-                    UsageLog.billing_period != new_period,
+                    UsageLog.created_at < cutoff,
                 )
             )
             await db.commit()
@@ -322,6 +319,7 @@ async def handle_webhook(payload: bytes, sig_header: str, db: AsyncSession) -> N
         sub = result.scalar_one_or_none()
         if sub:
             sub.status = "cancelled"
+            sub.stripe_subscription_id = None
             user = await db.get(User, sub.user_id)
             if user:
                 user.plan = "free"
