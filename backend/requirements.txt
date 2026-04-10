@@ -15,3 +15,5 @@ bcrypt==4.2.1
 resend==2.23.0
 passlib[bcrypt]==1.7.4
 cryptography>=42.0.0
+freezegun>=1.5.0
+slowapi>=0.1.9

@@ -275,3 +275,128 @@ async def test_single_ai_generation_creates_exactly_one_usage_log(
     )
     logs = result.scalars().all()
     assert len(logs) == 1, f"Expected exactly 1 UsageLog, got {len(logs)}"
+
+
+# ── Feature gates ─────────────────────────────────────────────────────────────
+
+async def test_feature_gate_auto_respond_blocked_on_starter(
+    db_session: AsyncSession,
+    test_user: User,
+    active_subscription: Subscription,
+):
+    """Starter plan has auto_respond=False → check_usage_limit raises 403."""
+    with pytest.raises(HTTPException) as exc_info:
+        await check_usage_limit(test_user, "auto_respond", db_session)
+
+    assert exc_info.value.status_code == 403
+    assert exc_info.value.detail["error"] == "feature_not_available"
+    assert exc_info.value.detail["feature"] == "auto_respond"
+
+
+async def test_feature_gate_export_csv_blocked_on_starter(
+    db_session: AsyncSession,
+    test_user: User,
+    active_subscription: Subscription,
+):
+    """Starter plan has export_csv=False → check_usage_limit raises 403."""
+    with pytest.raises(HTTPException) as exc_info:
+        await check_usage_limit(test_user, "export_csv", db_session)
+
+    assert exc_info.value.status_code == 403
+    assert exc_info.value.detail["feature"] == "export_csv"
+
+
+async def test_feature_gate_export_csv_allowed_on_pro(
+    db_session: AsyncSession,
+    test_user: User,
+    pro_subscription: Subscription,
+):
+    """Pro plan has export_csv=True → check_usage_limit does NOT raise."""
+    # Should not raise
+    await check_usage_limit(test_user, "export_csv", db_session)
+
+
+async def test_feature_gate_analytics_blocked_on_starter(
+    db_session: AsyncSession,
+    test_user: User,
+    active_subscription: Subscription,
+):
+    """Starter plan has analytics=False → check_usage_limit raises 403."""
+    with pytest.raises(HTTPException) as exc_info:
+        await check_usage_limit(test_user, "analytics", db_session)
+
+    assert exc_info.value.status_code == 403
+    assert exc_info.value.detail["feature"] == "analytics"
+
+
+async def test_feature_gate_analytics_allowed_on_pro(
+    db_session: AsyncSession,
+    test_user: User,
+    pro_subscription: Subscription,
+):
+    """Pro plan has analytics=True → check_usage_limit does NOT raise."""
+    await check_usage_limit(test_user, "analytics", db_session)
+
+
+# ── Month boundary with freezegun ─────────────────────────────────────────────
+
+async def test_usage_rolls_over_at_month_boundary(
+    db_session: AsyncSession,
+    test_user: User,
+):
+    """Usage from last month is NOT counted toward the current month's limit."""
+    from freezegun import freeze_time
+
+    sub = Subscription(
+        user_id=test_user.id,
+        plan_id="starter",
+        status="active",
+        current_period_end=datetime.now(timezone.utc) + timedelta(days=25),
+    )
+    db_session.add(sub)
+
+    # Seed 100 logs in March 2026 (filling the limit)
+    for _ in range(100):
+        db_session.add(UsageLog(
+            user_id=test_user.id,
+            action_type="ai_generate",
+            billing_period="2026-03",
+        ))
+    await db_session.flush()
+
+    # It is now April — previous month's logs must NOT count
+    with freeze_time("2026-04-01 10:00:00"):
+        # Should NOT raise — April has 0 logs, limit is 100
+        await check_usage_limit(test_user, "ai_generate", db_session)
+
+
+async def test_usage_limit_enforced_within_same_month(
+    db_session: AsyncSession,
+    test_user: User,
+):
+    """100 logs in current month on starter plan → 101st call raises 429."""
+    from freezegun import freeze_time
+
+    sub = Subscription(
+        user_id=test_user.id,
+        plan_id="starter",
+        status="active",
+        current_period_end=datetime.now(timezone.utc) + timedelta(days=25),
+    )
+    db_session.add(sub)
+
+    with freeze_time("2026-04-15 12:00:00"):
+        period = "2026-04"
+        for _ in range(100):
+            db_session.add(UsageLog(
+                user_id=test_user.id,
+                action_type="ai_generate",
+                billing_period=period,
+            ))
+        await db_session.flush()
+
+        with pytest.raises(HTTPException) as exc_info:
+            await check_usage_limit(test_user, "ai_generate", db_session)
+
+        assert exc_info.value.status_code == 429
+        assert exc_info.value.detail["used"] == 100
