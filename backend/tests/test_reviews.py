@@ -113,7 +113,8 @@ async def test_list_reviews_all_when_no_location_filter(
 
 async def test_update_review_status(client: AsyncClient, auth_headers, review):
     resp = await client.patch(
-        f"/reviews/{review.id}/status?status=ignored",
+        f"/reviews/{review.id}/status",
+        json={"status": "ignored"},
         headers=auth_headers,
     )
     assert resp.status_code == 200
@@ -122,7 +123,8 @@ async def test_update_review_status(client: AsyncClient, auth_headers, review):
 
 async def test_update_review_invalid_status(client: AsyncClient, auth_headers, review):
     resp = await client.patch(
-        f"/reviews/{review.id}/status?status=unknown",
+        f"/reviews/{review.id}/status",
+        json={"status": "unknown"},
         headers=auth_headers,
     )
     assert resp.status_code == 400
@@ -130,7 +132,8 @@ async def test_update_review_invalid_status(client: AsyncClient, auth_headers, r
 
 async def test_update_review_not_found(client: AsyncClient, auth_headers):
     resp = await client.patch(
-        f"/reviews/{uuid.uuid4()}/status?status=ignored",
+        f"/reviews/{uuid.uuid4()}/status",
+        json={"status": "ignored"},
         headers=auth_headers,
     )
     assert resp.status_code == 404

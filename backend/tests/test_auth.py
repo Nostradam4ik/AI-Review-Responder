@@ -192,10 +192,10 @@ async def test_telegram_webhook_already_linked(raw_client: AsyncClient, db_sessi
     test_user.telegram_chat_id = "existing_id"
     await db_session.flush()
 
-    with patch("app.routers.auth.send_telegram", new=AsyncMock()):
+    with patch("app.services.notification.send_telegram", new=AsyncMock()):
         resp = await raw_client.post(
             "/auth/telegram/webhook",
-            json=await _telegram_update(str(test_user.id), "new_id"),
+            json=await _telegram_update(str(test_user.id), "111000999"),
         )
 
     assert resp.status_code == 200
