@@ -36,6 +36,11 @@ postgres_data/
 # Alembic
 alembic/versions/__pycache__/
 
+# Coverage
+.coverage
+coverage.xml
+htmlcov/
+
 # Local dev binaries
 *.exe
 *.dll
