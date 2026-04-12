@@ -35,3 +35,9 @@ postgres_data/
 
 # Alembic
 alembic/versions/__pycache__/
+
+# Local dev binaries
+*.exe
+*.dll
+stripe.exe
+stripe
