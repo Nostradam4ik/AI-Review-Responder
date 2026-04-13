@@ -286,3 +286,138 @@ async def test_get_response_for_review_returns_draft(
     resp = await client.get(f"/responses/review/{review.id}", headers=auth_headers)
     assert resp.status_code == 200
     assert resp.json()["ai_draft"] == "Draft text"
+
+
+# ── error paths ───────────────────────────────────────────────────────────────
+
+async def test_edit_response_not_found(client: AsyncClient, auth_headers):
+    """PUT /responses/{random_id} → 404 when response does not exist."""
+    resp = await client.put(
+        f"/responses/{uuid.uuid4()}",
+        json={"final_text": "updated text"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 404
+
+
+async def test_publish_response_not_found(client: AsyncClient, auth_headers):
+    """POST /responses/{random_id}/publish → 404 when response does not exist."""
+    resp = await client.post(
+        f"/responses/{uuid.uuid4()}/publish",
+        headers=auth_headers,
+    )
+    assert resp.status_code == 404
+
+
+async def test_generate_response_forbidden_other_user(
+    client: AsyncClient,
+    auth_headers,
+    db_session: AsyncSession,
+    trial_subscription,
+):
+    """Generate for a review that belongs to another user → 403 (line 36)."""
+    from app.core.security import hash_password
+    from app.models.user import User
+
+    user_b = User(
+        id=uuid.uuid4(),
+        email=f"other-{uuid.uuid4().hex[:8]}@test.com",
+        password_hash=hash_password("pass1234"),
+        is_active=True,
+        email_verified=True,
+    )
+    db_session.add(user_b)
+
+    location_b = Location(
+        id=uuid.uuid4(),
+        user_id=user_b.id,
+        gmb_location_id=f"accounts/999/locations/{uuid.uuid4().hex[:8]}",
+        name="Other Café",
+        is_active=True,
+    )
+    db_session.add(location_b)
+
+    review_b = Review(
+        id=uuid.uuid4(),
+        location_id=location_b.id,
+        gmb_review_id=f"reviews/{uuid.uuid4().hex[:8]}",
+        author_name="Eve",
+        rating=3,
+        comment="Average experience",
+        language="en",
+        status="pending",
+    )
+    db_session.add(review_b)
+    await db_session.flush()
+
+    with patch("app.services.ai_service.get_llm_provider", return_value=_mock_llm_provider()):
+        resp = await client.post(
+            "/responses/generate",
+            json={"review_id": str(review_b.id), "tone": "professional"},
+            headers=auth_headers,
+        )
+
+    assert resp.status_code == 403
+
+
+# ── auto-publish ──────────────────────────────────────────────────────────────
+
+async def test_auto_publish_on_generate_success(
+    client: AsyncClient,
+    auth_headers,
+    db_session: AsyncSession,
+    review,
+    trial_subscription,
+    test_user,
+):
+    """generate_response with auto_publish=True → draft auto-published to GMB (lines 58–80).
+
+    The client fixture already returns test_user from get_current_user, so
+    mutating test_user.auto_publish is sufficient — no extra override needed.
+    """
+    test_user.auto_publish = True
+    await db_session.flush()
+
+    mock_gmb = AsyncMock()
+    mock_gmb.publish_response = AsyncMock(return_value=True)
+
+    with patch("app.services.ai_service.get_llm_provider", return_value=_mock_llm_provider("Auto!")), \
+         patch("app.routers.responses.get_gmb_service", return_value=mock_gmb):
+        resp = await client.post(
+            "/responses/generate",
+            json={"review_id": str(review.id), "tone": "warm"},
+            headers=auth_headers,
+        )
+
+    assert resp.status_code == 200
+    assert resp.json()["published_at"] is not None
+
+
+async def test_auto_publish_skipped_on_usage_limit_exceeded(
+    client: AsyncClient,
+    auth_headers,
+    db_session: AsyncSession,
+    review,
+    trial_subscription,
+    test_user,
+):
+    """auto_publish raises HTTPException (usage limit) → draft returned, publish skipped (lines 81–83)."""
+    from fastapi import HTTPException as FastAPIHTTPException
+
+    test_user.auto_publish = True
+    await db_session.flush()
+
+    # First call (ai_generate check) passes; second call (ai_publish inside auto_publish) raises
+    with patch("app.services.ai_service.get_llm_provider", return_value=_mock_llm_provider("Draft only")), \
+         patch(
+             "app.routers.responses.check_usage_limit",
+             new=AsyncMock(side_effect=[None, FastAPIHTTPException(status_code=429, detail="limit")]),
+         ):
+        resp = await client.post(
+            "/responses/generate",
+            json={"review_id": str(review.id), "tone": "warm"},
+            headers=auth_headers,
+        )
+
+    assert resp.status_code == 200
+    assert resp.json()["published_at"] is None
