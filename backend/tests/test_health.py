@@ -5,11 +5,15 @@ from app.main import app
 
 
 @pytest.mark.asyncio
-async def test_health_check():
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        response = await ac.get("/health")
+async def test_health_check(client: AsyncClient):
+    """GET /health → 200 with database=ok (uses injected test DB session)."""
+    response = await client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    data = response.json()
+    assert data["status"] == "ok"
+    assert data["database"] == "ok"
+    assert "version" in data
+    assert "environment" in data
 
 
 @pytest.mark.asyncio

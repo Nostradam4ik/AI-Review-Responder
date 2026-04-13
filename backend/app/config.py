@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     # python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
     TOKEN_ENCRYPTION_KEY: str = ""
 
+    # Sentry error tracking (optional — leave empty to disable)
+    SENTRY_DSN: str | None = None
+
     # Resend (email)
     RESEND_API_KEY: str = ""
     FROM_EMAIL: str = "noreply@yourapp.com"
