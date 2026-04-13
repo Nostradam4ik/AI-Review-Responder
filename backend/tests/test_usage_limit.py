@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.usage_limit import check_usage_limit
+from app.core.usage_limit import check_usage_limit, get_user_plan_features
 from app.models.plan import Plan
 from app.models.subscription import Subscription
 from app.models.usage_log import UsageLog
@@ -368,6 +368,51 @@ async def test_usage_rolls_over_at_month_boundary(
     with freeze_time("2026-04-01 10:00:00"):
         # Should NOT raise — April has 0 logs, limit is 100
         await check_usage_limit(test_user, "ai_generate", db_session)
+
+
+# ── Non-active subscription statuses ─────────────────────────────────────────
+
+async def test_check_usage_cancelled_subscription(
+    db_session: AsyncSession,
+    test_user: User,
+):
+    """Cancelled subscription → 402 subscription_required (line 56 branch)."""
+    sub = Subscription(
+        user_id=test_user.id,
+        plan_id="starter",
+        status="cancelled",
+    )
+    db_session.add(sub)
+    await db_session.flush()
+
+    with pytest.raises(HTTPException) as exc_info:
+        await check_usage_limit(test_user, "ai_generate", db_session)
+
+    assert exc_info.value.status_code == 402
+    assert exc_info.value.detail["error"] == "subscription_required"
+
+
+# ── get_user_plan_features ────────────────────────────────────────────────────
+
+async def test_get_user_plan_features_no_subscription(
+    db_session: AsyncSession,
+    test_user: User,
+):
+    """No subscription → get_user_plan_features returns empty dict (lines 143–145)."""
+    result = await get_user_plan_features(test_user, db_session)
+    assert result == {}
+
+
+async def test_get_user_plan_features_pro_subscription(
+    db_session: AsyncSession,
+    test_user: User,
+    pro_subscription: Subscription,
+):
+    """Pro subscription → get_user_plan_features returns pro feature flags (lines 146–148)."""
+    result = await get_user_plan_features(test_user, db_session)
+    assert result.get("auto_respond") is True
+    assert result.get("export_csv") is True
+    assert result.get("analytics") is True
 
 
 async def test_usage_limit_enforced_within_same_month(

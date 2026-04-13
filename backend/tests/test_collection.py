@@ -116,39 +116,16 @@ async def test_list_collection_links_returns_own_links(
 
 
 async def test_list_collection_links_empty_for_new_user(
-    db_session: AsyncSession,
+    client: AsyncClient,
 ):
-    """User with no locations → empty list (no crash)."""
-    from app.main import app
-    from app.database import get_db
-    from app.core.dependencies import get_current_user
-    from httpx import AsyncClient, ASGITransport
+    """User with no collection links → empty list (no crash).
 
-    new_user = User(
-        id=uuid.uuid4(),
-        email=f"empty-{uuid.uuid4().hex[:8]}@test.com",
-        is_active=True,
-        email_verified=True,
-    )
-    db_session.add(new_user)
-    await db_session.flush()
-
-    async def _db():
-        yield db_session
-
-    async def _user():
-        return new_user
-
-    app.dependency_overrides[get_db] = _db
-    app.dependency_overrides[get_current_user] = _user
-
-    try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-            resp = await ac.get("/collection/links")
-        assert resp.status_code == 200
-        assert resp.json()["links"] == []
-    finally:
-        app.dependency_overrides.clear()
+    Uses the standard client fixture (test_user with no links created),
+    avoiding manual dependency_overrides that break coverage instrumentation.
+    """
+    resp = await client.get("/collection/links")
+    assert resp.status_code == 200
+    assert resp.json()["links"] == []
 
 
 # ── GET /c/{slug} — public HTML page ─────────────────────────────────────────
@@ -314,38 +291,20 @@ async def test_stats_counts_internal_feedback(
 
 
 async def test_stats_forbidden_for_other_user(
-    db_session: AsyncSession,
+    admin_client: AsyncClient,
     test_link: ReviewCollectionLink,
 ):
-    """Stats for a link owned by another user → 403."""
-    from app.main import app
-    from app.database import get_db
-    from app.core.dependencies import get_current_user
-    from httpx import AsyncClient, ASGITransport
-    from app.core.security import hash_password
+    """Stats for a link owned by test_user, accessed as admin_user → 403.
 
-    other = User(
-        id=uuid.uuid4(),
-        email=f"other-{uuid.uuid4().hex[:8]}@test.com",
-        password_hash=hash_password("pw"),
-        email_verified=True,
-        is_active=True,
-    )
-    db_session.add(other)
-    await db_session.flush()
+    admin_user doesn't own test_link's location, so the ownership check fails.
+    Uses the admin_client fixture to avoid manual dependency_overrides in the
+    test body (which breaks coverage instrumentation for surrounding tests).
+    """
+    resp = await admin_client.get(f"/collection/links/{test_link.id}/stats")
+    assert resp.status_code == 403
 
-    async def _db():
-        yield db_session
 
-    async def _other():
-        return other
-
-    app.dependency_overrides[get_db] = _db
-    app.dependency_overrides[get_current_user] = _other
-
-    try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-            resp = await ac.get(f"/collection/links/{test_link.id}/stats")
-        assert resp.status_code == 403
-    finally:
-        app.dependency_overrides.clear()
+async def test_get_link_stats_not_found(client: AsyncClient):
+    """GET /collection/links/{random_id}/stats → 404 when link doesn't exist."""
+    resp = await client.get(f"/collection/links/{uuid.uuid4()}/stats")
+    assert resp.status_code == 404

@@ -224,3 +224,66 @@ async def test_get_billing_status_custom_cap_override(
 
     status = await billing_service.get_billing_status(test_user, db_session)
     assert status["usage"]["ai_responses_limit"] == 25
+
+
+# ── Unit tests: pure functions ────────────────────────────────────────────────
+
+def test_price_id_unknown_plan():
+    """_price_id_for_plan with unknown plan_id → HTTPException 400 (line 39)."""
+    from fastapi import HTTPException
+    from app.services.billing_service import _price_id_for_plan
+
+    with patch("app.services.billing_service.settings") as ms:
+        ms.STRIPE_PRICE_STARTER = ""
+        ms.STRIPE_PRICE_PRO = ""
+        ms.STRIPE_PRICE_AGENCY = ""
+        with pytest.raises(HTTPException) as exc:
+            _price_id_for_plan("unknown_xyz")
+
+    assert exc.value.status_code == 400
+
+
+def test_effective_ai_limit_none_inputs():
+    """_effective_ai_limit(None, plan=None) → None (unlimited) (line 111)."""
+    from app.services.billing_service import _effective_ai_limit
+
+    result = _effective_ai_limit(None, plan=None)
+    assert result is None
+
+
+async def test_webhook_secret_missing(db_session: AsyncSession):
+    """handle_webhook with empty STRIPE_WEBHOOK_SECRET → HTTPException 400 (line 187)."""
+    from fastapi import HTTPException
+
+    with patch("app.services.billing_service.settings") as ms:
+        ms.STRIPE_WEBHOOK_SECRET = ""
+        with pytest.raises(HTTPException) as exc:
+            await billing_service.handle_webhook(b"test", "t=1,v1=abc", db_session)
+
+    assert exc.value.status_code == 400
+
+
+async def test_payment_succeeded_no_stripe_sub_id(db_session: AsyncSession):
+    """invoice.payment_succeeded with subscription=None → early return, no DB changes (line 261)."""
+    event = _make_event("invoice.payment_succeeded", {"subscription": None, "customer": "cus_test"})
+
+    with patch("stripe.Webhook.construct_event", return_value=event), \
+         patch("app.services.billing_service._init_stripe"), \
+         patch("app.services.billing_service.settings") as ms:
+        ms.STRIPE_WEBHOOK_SECRET = "whsec_test"
+        ms.STRIPE_SECRET_KEY = "sk_test"
+        # Should return without error or DB writes
+        await billing_service.handle_webhook(b"payload", "sig", db_session)
+
+
+async def test_subscription_deleted_no_sub_id(db_session: AsyncSession):
+    """customer.subscription.deleted with id=None → early return, no DB changes (line 315)."""
+    event = _make_event("customer.subscription.deleted", {"id": None})
+
+    with patch("stripe.Webhook.construct_event", return_value=event), \
+         patch("app.services.billing_service._init_stripe"), \
+         patch("app.services.billing_service.settings") as ms:
+        ms.STRIPE_WEBHOOK_SECRET = "whsec_test"
+        ms.STRIPE_SECRET_KEY = "sk_test"
+        # Should return without error or DB writes
+        await billing_service.handle_webhook(b"payload", "sig", db_session)
