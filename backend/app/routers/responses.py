@@ -1,4 +1,6 @@
+import time
 import uuid
+from collections import defaultdict
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -19,6 +21,37 @@ from app.services.ai_service import generate_and_save
 from app.services.gmb_service import get_gmb_service
 
 router = APIRouter(prefix="/responses", tags=["responses"])
+
+# ── Per-user sliding-window rate limiter ──────────────────────────────────────
+
+RESPONSE_RATE_LIMITS: dict[str, tuple[int, int]] = {
+    "free":    (5,  60),
+    "starter": (10, 60),
+    "pro":     (20, 60),
+    "agency":  (60, 60),
+}
+
+# In-memory sliding window: user_id → list of call timestamps
+_rate_windows: dict[str, list[float]] = defaultdict(list)
+
+
+def _check_sliding_window(user_id: str, max_calls: int, window_sec: int) -> None:
+    """Raise 429 if the user has exceeded max_calls within the last window_sec seconds."""
+    now = time.time()
+    key = str(user_id)
+    # Evict timestamps outside the window
+    _rate_windows[key] = [t for t in _rate_windows[key] if now - t < window_sec]
+    if len(_rate_windows[key]) >= max_calls:
+        raise HTTPException(
+            status_code=429,
+            headers={"Retry-After": str(window_sec)},
+            detail={
+                "error": "rate_limit_exceeded",
+                "limit": f"{max_calls} requests per {window_sec}s",
+                "retry_after": window_sec,
+            },
+        )
+    _rate_windows[key].append(now)
 
 
 async def _get_review_with_auth(
@@ -47,6 +80,12 @@ async def generate_response(
     db: AsyncSession = Depends(get_db),
 ):
     """Generate an AI draft response for a review (usage limit checked)."""
+    # Per-plan sliding-window rate limit (in-memory, single-server)
+    from app.core.report_limit import _get_user_plan_name
+    plan_name = await _get_user_plan_name(current_user, db)
+    max_calls, window = RESPONSE_RATE_LIMITS.get(plan_name, (5, 60))
+    _check_sliding_window(str(current_user.id), max_calls, window)
+
     await _get_review_with_auth(body.review_id, current_user, db)
     await check_usage_limit(current_user, "ai_generate", db)
 

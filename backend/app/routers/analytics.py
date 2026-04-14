@@ -200,20 +200,11 @@ async def _save_cached_report(
     location_id: uuid.UUID | None,
     period: str,
     result: dict,
+    was_cache_hit: bool = False,
 ) -> None:
+    """Append a new cache entry. Old entries are kept to allow daily-limit counting."""
     now = datetime.now(timezone.utc)
     today = date.today()
-    # Remove stale entries for this key
-    stale = await db.execute(
-        select(AnalyticsCache).where(
-            AnalyticsCache.user_id == user_id,
-            AnalyticsCache.location_id == location_id,
-            AnalyticsCache.period == period,
-        )
-    )
-    for entry in stale.scalars().all():
-        await db.delete(entry)
-
     cache_entry = AnalyticsCache(
         user_id=user_id,
         location_id=location_id,
@@ -221,6 +212,7 @@ async def _save_cached_report(
         cache_date=today,
         result=result,
         expires_at=now + timedelta(hours=6),
+        was_cache_hit=was_cache_hit,
     )
     db.add(cache_entry)
     await db.flush()
@@ -235,13 +227,17 @@ async def _build_report(
     """Generate (or load from cache) the intelligence analysis + build meta dict."""
     from groq import AsyncGroq
     from app.config import settings
+    from app.core.report_limit import check_report_daily_limit
     from app.services.review_intelligence import generate_intelligence_report
 
-    # Check cache first
+    # 1. Check cache first — cache hit skips daily limit and LLM call
     cached = await _get_cached_report(db, current_user.id, location_id, period)
     if cached:
         analysis = cached
     else:
+        # 2. Cache miss — enforce daily cap before calling LLM
+        await check_report_daily_limit(current_user, db)
+
         # Get all active location IDs for the user
         loc_result = await db.execute(
             select(Location).where(
@@ -270,7 +266,6 @@ async def _build_report(
             reviews = await _fetch_reviews(db, list(locations.keys()), current_start, current_end, location_id)
             prev_reviews = await _fetch_reviews(db, list(locations.keys()), prev_start, prev_end, location_id)
 
-            # Determine location name for header
             if location_id and location_id in locations:
                 location_name = locations[location_id].name
             elif len(locations) == 1:
@@ -287,7 +282,8 @@ async def _build_report(
                 groq_client=groq_client,
             )
 
-        await _save_cached_report(db, current_user.id, location_id, period, analysis)
+        # 3. Save with was_cache_hit=False (real LLM call)
+        await _save_cached_report(db, current_user.id, location_id, period, analysis, was_cache_hit=False)
         await db.commit()
 
     # Build meta

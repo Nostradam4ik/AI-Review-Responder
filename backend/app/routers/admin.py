@@ -11,11 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user
 from app.database import get_db
+from app.models.analytics_cache import AnalyticsCache
 from app.models.location import Location
 from app.models.plan import Plan
 from app.models.response import Response
 from app.models.review import Review
 from app.models.subscription import Subscription
+from app.models.usage_log import UsageLog
 from app.models.user import User
 
 logger = logging.getLogger(__name__)
@@ -430,6 +432,64 @@ async def edit_user(
         user_id, body.plan, body.status, body.subscription_end, body.ai_responses_limit,
     )
     return {"updated": True}
+
+
+# ---------------------------------------------------------------------------
+# GET /admin/cost-monitor  — real-time LLM cost visibility
+# ---------------------------------------------------------------------------
+
+@router.get("/cost-monitor")
+async def get_cost_monitor(
+    _: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Shows current month AI usage + estimated Groq costs across all users."""
+    period = datetime.now(timezone.utc).strftime("%Y-%m")
+
+    # Top 10 users by AI calls this month
+    usage_result = await db.execute(
+        select(UsageLog.user_id, func.count().label("total_calls"))
+        .where(
+            UsageLog.action_type.in_(["ai_generate", "ai_publish"]),
+            UsageLog.billing_period == period,
+        )
+        .group_by(UsageLog.user_id)
+        .order_by(func.count().desc())
+        .limit(10)
+    )
+    rows = usage_result.all()
+
+    # Intelligence Report LLM calls this month (was_cache_hit=False only)
+    report_result = await db.execute(
+        select(func.count()).where(
+            AnalyticsCache.was_cache_hit == False,  # noqa: E712
+            func.date_trunc("month", AnalyticsCache.created_at)
+            == func.date_trunc("month", func.now()),
+        )
+    )
+    report_count = report_result.scalar() or 0
+
+    total_response_calls = sum(r.total_calls for r in rows)
+    estimated_response_cost = total_response_calls * 0.000026
+    estimated_report_cost = report_count * 0.003
+
+    return {
+        "period": period,
+        "top_users_by_calls": [
+            {"user_id": str(r.user_id), "calls": r.total_calls}
+            for r in rows
+        ],
+        "intelligence_reports_generated": report_count,
+        "estimated_costs": {
+            "responses_usd": round(estimated_response_cost, 4),
+            "reports_usd": round(estimated_report_cost, 4),
+            "total_usd": round(estimated_response_cost + estimated_report_cost, 4),
+        },
+        "groq_pricing": {
+            "response_per_call": "$0.000026",
+            "report_per_call": "$0.003 avg",
+        },
+    }
 
 
 # ---------------------------------------------------------------------------
