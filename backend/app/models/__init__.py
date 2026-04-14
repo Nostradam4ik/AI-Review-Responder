@@ -5,5 +5,6 @@ from app.models.response import Response
 from app.models.plan import Plan
 from app.models.subscription import Subscription
 from app.models.usage_log import UsageLog
+from app.models.analytics_cache import AnalyticsCache
 
-__all__ = ["User", "Location", "Review", "Response", "Plan", "Subscription", "UsageLog"]
+__all__ = ["User", "Location", "Review", "Response", "Plan", "Subscription", "UsageLog", "AnalyticsCache"]
