@@ -22,7 +22,7 @@ const PLANS = [
     locations: 3,
     responses: 0,
     icon: Rocket,
-    features: ["Everything in Starter", "Unlimited AI responses", "CSV export", "Auto-publish", "Custom instructions", "Full analytics", "Priority support"],
+    features: ["Everything in Starter", "Unlimited AI responses", "CSV export", "Auto-publish", "Custom instructions", "AI Intelligence Reports", "Priority support"],
     popular: true,
   },
   {
