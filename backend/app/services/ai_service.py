@@ -12,6 +12,15 @@ from app.services.llm.base import ReviewContext
 from app.services.llm.factory import get_llm_provider
 
 
+def _sanitize_review_text(text: str | None, max_length: int = 2000) -> str:
+    """Prevent prompt injection and limit token usage."""
+    if not text:
+        return ""
+    # Remove null bytes and control chars (keep newline, carriage return, tab)
+    text = "".join(c for c in text if ord(c) >= 32 or c in "\n\r\t")
+    return text[:max_length]
+
+
 async def generate_and_save(
     review_id: uuid.UUID,
     db: AsyncSession,
@@ -28,7 +37,7 @@ async def generate_and_save(
 
     provider = get_llm_provider()
     context = ReviewContext(
-        review_text=review.comment or "",
+        review_text=_sanitize_review_text(review.comment),
         business_name=business_name,
         rating=review.rating,
         tone=tone,

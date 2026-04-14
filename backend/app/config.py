@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -14,6 +15,17 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str = "groq"
     FRONTEND_URL: str = "http://localhost:3000"
     APP_URL: str = "http://localhost:3000"
+
+    # CORS — in production set to your real domain(s):
+    # ALLOWED_ORIGINS=["https://yourdomain.com","https://www.yourdomain.com"]
+    ALLOWED_ORIGINS: list[str] = ["http://localhost:3000"]
+
+    @field_validator("SECRET_KEY")
+    @classmethod
+    def secret_key_min_length(cls, v: str) -> str:
+        if len(v) < 32:
+            raise ValueError("SECRET_KEY must be at least 32 characters")
+        return v
 
     # Stripe
     STRIPE_SECRET_KEY: str = ""
