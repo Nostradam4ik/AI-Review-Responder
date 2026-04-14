@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_asyncio
+from fastapi import HTTPException
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -421,3 +422,226 @@ async def test_auto_publish_skipped_on_usage_limit_exceeded(
 
     assert resp.status_code == 200
     assert resp.json()["published_at"] is None
+
+
+# ── Direct-call tests (bypass ASGI so coverage.py tracks async lines) ─────────
+#
+# coverage.py uses sys.settrace which doesn't re-attach to async resume points
+# inside requests dispatched via ASGITransport (a separate async context).
+# Calling route handlers directly keeps everything in the same coroutine frame
+# so every executed line is properly recorded.
+
+async def test_get_review_with_auth_not_found_direct(
+    db_session: AsyncSession,
+    test_user,
+):
+    """_get_review_with_auth with unknown review_id → 404 (line 32, directly called)."""
+    import pytest
+    from fastapi import HTTPException
+    from app.routers.responses import _get_review_with_auth
+
+    with pytest.raises(HTTPException) as exc:
+        await _get_review_with_auth(uuid.uuid4(), test_user, db_session)
+    assert exc.value.status_code == 404
+
+
+async def test_auto_publish_direct_success(
+    db_session: AsyncSession,
+    review,
+    trial_subscription,
+    test_user,
+):
+    """generate_response called directly: auto_publish=True + GMB success → published_at set (lines 58–80)."""
+    from app.routers.responses import generate_response
+    from app.schemas.response import ResponseCreate
+
+    test_user.auto_publish = True
+    await db_session.flush()
+
+    mock_gmb = AsyncMock()
+    mock_gmb.publish_response = AsyncMock(return_value=True)
+
+    # __wrapped__ is the original coroutine before slowapi's rate-limit wrapper
+    fn = generate_response.__wrapped__
+    body = ResponseCreate(review_id=review.id, tone="warm")
+
+    with patch("app.services.ai_service.get_llm_provider", return_value=_mock_llm_provider("Direct auto!")), \
+         patch("app.routers.responses.get_gmb_service", return_value=mock_gmb), \
+         patch("app.routers.responses.check_usage_limit", new=AsyncMock(return_value=None)):
+        result = await fn(request=MagicMock(), body=body, current_user=test_user, db=db_session)
+
+    assert result.published_at is not None
+    mock_gmb.publish_response.assert_called_once()
+
+
+async def test_auto_publish_direct_gmb_returns_false(
+    db_session: AsyncSession,
+    review,
+    trial_subscription,
+    test_user,
+):
+    """generate_response directly: GMB publish returns False → published_at stays None (line 71 else branch)."""
+    from app.routers.responses import generate_response
+    from app.schemas.response import ResponseCreate
+
+    test_user.auto_publish = True
+    await db_session.flush()
+
+    mock_gmb = AsyncMock()
+    mock_gmb.publish_response = AsyncMock(return_value=False)
+
+    fn = generate_response.__wrapped__
+    body = ResponseCreate(review_id=review.id, tone="warm")
+
+    with patch("app.services.ai_service.get_llm_provider", return_value=_mock_llm_provider("Not published")), \
+         patch("app.routers.responses.get_gmb_service", return_value=mock_gmb), \
+         patch("app.routers.responses.check_usage_limit", new=AsyncMock(return_value=None)):
+        result = await fn(request=MagicMock(), body=body, current_user=test_user, db=db_session)
+
+    assert result.published_at is None
+
+
+async def test_auto_publish_direct_usage_limit_skips_publish(
+    db_session: AsyncSession,
+    review,
+    trial_subscription,
+    test_user,
+):
+    """generate_response directly: 2nd check_usage_limit raises → warning logged, no publish (lines 81–83)."""
+    from fastapi import HTTPException as FastAPIHTTPException
+    from app.routers.responses import generate_response
+    from app.schemas.response import ResponseCreate
+
+    test_user.auto_publish = True
+    await db_session.flush()
+
+    mock_gmb = AsyncMock()
+
+    fn = generate_response.__wrapped__
+    body = ResponseCreate(review_id=review.id, tone="warm")
+
+    with patch("app.services.ai_service.get_llm_provider", return_value=_mock_llm_provider("Draft")), \
+         patch("app.routers.responses.get_gmb_service", return_value=mock_gmb), \
+         patch(
+             "app.routers.responses.check_usage_limit",
+             new=AsyncMock(side_effect=[None, FastAPIHTTPException(429, "limit")]),
+         ):
+        result = await fn(request=MagicMock(), body=body, current_user=test_user, db=db_session)
+
+    assert result.published_at is None
+    mock_gmb.publish_response.assert_not_called()
+
+
+async def test_publish_response_direct_success(
+    db_session: AsyncSession,
+    review,
+    trial_subscription,
+    test_user,
+):
+    """publish_response called directly → published_at set, review.status=responded (lines 123–144)."""
+    from app.routers.responses import publish_response
+    from app.models.response import Response as ReviewResponse
+
+    # Create a draft response in DB
+    draft = ReviewResponse(
+        id=uuid.uuid4(),
+        review_id=review.id,
+        ai_draft="Draft to publish",
+    )
+    db_session.add(draft)
+    await db_session.flush()
+
+    mock_gmb = AsyncMock()
+    mock_gmb.publish_response = AsyncMock(return_value=True)
+
+    with patch("app.routers.responses.get_gmb_service", return_value=mock_gmb), \
+         patch("app.routers.responses.check_usage_limit", new=AsyncMock(return_value=None)):
+        result = await publish_response(
+            response_id=draft.id,
+            current_user=test_user,
+            db=db_session,
+        )
+
+    assert result.published_at is not None
+    await db_session.refresh(review)
+    assert review.status == "responded"
+
+
+async def test_get_response_for_review_direct(
+    db_session: AsyncSession,
+    review,
+    trial_subscription,
+    test_user,
+):
+    """get_response_for_review called directly → None when no draft (line 159)."""
+    from app.routers.responses import get_response_for_review
+
+    result = await get_response_for_review(
+        review_id=review.id,
+        current_user=test_user,
+        db=db_session,
+    )
+    assert result is None
+
+
+async def test_publish_response_direct_no_access_token(
+    db_session: AsyncSession,
+    review,
+    trial_subscription,
+    test_user,
+):
+    """publish_response directly: no access_token → 400 (line 126)."""
+    from app.models.response import Response as ReviewResponse
+    from app.routers.responses import publish_response
+
+    test_user.access_token = None
+    await db_session.flush()
+
+    draft = ReviewResponse(
+        id=uuid.uuid4(),
+        review_id=review.id,
+        ai_draft="No token draft",
+    )
+    db_session.add(draft)
+    await db_session.flush()
+
+    with patch("app.routers.responses.check_usage_limit", new=AsyncMock(return_value=None)):
+        with pytest.raises(HTTPException) as exc:
+            await publish_response(
+                response_id=draft.id,
+                current_user=test_user,
+                db=db_session,
+            )
+    assert exc.value.status_code == 400
+
+
+async def test_publish_response_direct_gmb_failure(
+    db_session: AsyncSession,
+    review,
+    trial_subscription,
+    test_user,
+):
+    """publish_response directly: GMB publish returns False → 502 (line 138)."""
+    from app.models.response import Response as ReviewResponse
+    from app.routers.responses import publish_response
+
+    draft = ReviewResponse(
+        id=uuid.uuid4(),
+        review_id=review.id,
+        ai_draft="GMB will fail",
+    )
+    db_session.add(draft)
+    await db_session.flush()
+
+    mock_gmb = AsyncMock()
+    mock_gmb.publish_response = AsyncMock(return_value=False)
+
+    with patch("app.routers.responses.get_gmb_service", return_value=mock_gmb), \
+         patch("app.routers.responses.check_usage_limit", new=AsyncMock(return_value=None)):
+        with pytest.raises(HTTPException) as exc:
+            await publish_response(
+                response_id=draft.id,
+                current_user=test_user,
+                db=db_session,
+            )
+    assert exc.value.status_code == 502
