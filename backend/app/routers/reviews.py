@@ -176,13 +176,14 @@ def _build_review_query(location_ids, status=None, location_id=None, date_from=N
 
 @router.get("/export/csv")
 async def export_reviews_csv(
+    location_id: uuid.UUID | None = Query(None),
     status: str | None = Query(None),
     date_from: datetime | None = Query(None),
     date_to: datetime | None = Query(None),
     current_user: User = Depends(require_plan_feature("export_csv")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Export reviews as a CSV file."""
+    """Export reviews as a CSV file. PRO+ only."""
     from app.models.response import Response as ReviewResponse
     locs_result = await db.execute(
         select(Location).where(Location.user_id == current_user.id)
@@ -191,7 +192,13 @@ async def export_reviews_csv(
     if not locations:
         return StreamingResponse(io.StringIO(""), media_type="text/csv")
 
-    query = _build_review_query(list(locations.keys()), status=status, date_from=date_from, date_to=date_to)
+    query = _build_review_query(
+        list(locations.keys()),
+        status=status,
+        location_id=str(location_id) if location_id else None,
+        date_from=date_from,
+        date_to=date_to,
+    )
     query = query.order_by(Review.review_date.desc())
     result = await db.execute(query)
     reviews = result.scalars().all()

@@ -123,11 +123,12 @@ export const reviewsApi = {
   sync: (location_id?: string) =>
     api.post("/reviews/sync", null, { params: { location_id } }).then((r) => r.data),
   seedDemo: () => api.post("/reviews/seed-demo").then((r) => r.data),
-  exportCsv: (params?: { status?: string; date_from?: string; date_to?: string }) => {
+  exportCsv: (params?: { status?: string; location_id?: string; date_from?: string; date_to?: string }) => {
     const token = typeof window !== "undefined" ? localStorage.getItem("air_token") : "";
     const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
     const qs = new URLSearchParams();
     if (params?.status) qs.set("status", params.status);
+    if (params?.location_id) qs.set("location_id", params.location_id);
     if (params?.date_from) qs.set("date_from", params.date_from);
     if (params?.date_to) qs.set("date_to", params.date_to);
     const url = `${base}/reviews/export/csv${qs.toString() ? "?" + qs.toString() : ""}`;
@@ -139,7 +140,7 @@ export const reviewsApi = {
       .then((blob) => {
         const blobUrl = URL.createObjectURL(blob);
         a.href = blobUrl;
-        a.download = "reviews.csv";
+        a.download = `reviews_${new Date().toISOString().split("T")[0]}.csv`;
         a.click();
         URL.revokeObjectURL(blobUrl);
       });
