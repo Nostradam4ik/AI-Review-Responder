@@ -31,7 +31,10 @@ RESPONSE_RATE_LIMITS: dict[str, tuple[int, int]] = {
     "agency":  (60, 60),
 }
 
-# In-memory sliding window: user_id → list of call timestamps
+# WARNING: This sliding window is in-memory and NOT shared across workers.
+# For multi-worker prod deployments, replace with Redis-backed counter.
+# TODO: migrate to redis-py with INCR + EXPIRE pattern.
+# Current workaround: docker-compose.prod.yml uses --workers 1 for the backend.
 _rate_windows: dict[str, list[float]] = defaultdict(list)
 
 

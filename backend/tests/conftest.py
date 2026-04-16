@@ -64,7 +64,7 @@ async def seed_plans(create_tables):
                     name="Pro",
                     price_eur=39,
                     max_locations=3,
-                    max_responses_per_month=0,   # 0 = unlimited
+                    max_responses_per_month=500,
                     features={"export_csv": True, "auto_respond": True, "analytics": True},
                 ),
                 Plan(

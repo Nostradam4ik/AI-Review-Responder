@@ -18,7 +18,8 @@ services:
     restart: always
     command: >
       sh -c "alembic upgrade head &&
-             uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2"
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1"
+             # TODO: restore --workers 2 after migrating rate limiter to Redis
     env_file: .env.prod
     depends_on:
       - postgres

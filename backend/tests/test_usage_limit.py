@@ -134,24 +134,38 @@ async def test_active_subscription_at_monthly_limit_raises_429(
     assert exc_info.value.detail["error"] == "monthly_limit_reached"
 
 
-async def test_pro_subscription_no_limit_enforced(
+async def test_pro_subscription_enforces_500_cap(
     db_session: AsyncSession,
     test_user: User,
     pro_subscription: Subscription,
 ):
-    """Pro plan (max_responses=0 = unlimited) → no 429 regardless of usage."""
+    """Pro plan (max_responses_per_month=500) → no 429 below limit, 429 at limit."""
     period = datetime.now(timezone.utc).strftime("%Y-%m")
-    # Simulate heavy usage
-    for _ in range(500):
+
+    # 499 logs → within limit, must NOT raise
+    for _ in range(499):
         db_session.add(UsageLog(
             user_id=test_user.id,
             action_type="ai_generate",
             billing_period=period,
         ))
     await db_session.flush()
-
-    # Should NOT raise
     await check_usage_limit(test_user, "ai_generate", db_session)
+
+    # One more log reaches the cap (500 >= 500) → must raise 429
+    db_session.add(UsageLog(
+        user_id=test_user.id,
+        action_type="ai_generate",
+        billing_period=period,
+    ))
+    await db_session.flush()
+
+    with pytest.raises(HTTPException) as exc_info:
+        await check_usage_limit(test_user, "ai_generate", db_session)
+
+    assert exc_info.value.status_code == 429
+    assert exc_info.value.detail["error"] == "monthly_limit_reached"
+    assert exc_info.value.detail["limit"] == 500
 
 
 async def test_admin_override_unlimited(
