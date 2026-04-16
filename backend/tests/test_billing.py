@@ -73,7 +73,12 @@ async def test_checkout_creates_stripe_customer_and_saves_to_db(
 
         mock_thread.side_effect = fake_to_thread
 
-        with patch("app.services.billing_service._init_stripe"):
+        with patch("app.services.billing_service._init_stripe"), \
+             patch("app.services.billing_service.settings") as mock_settings:
+            mock_settings.STRIPE_PRICE_ID_STARTER = "price_test_starter"
+            mock_settings.STRIPE_PRICE_ID_PRO = "price_test_pro"
+            mock_settings.STRIPE_PRICE_ID_AGENCY = "price_test_agency"
+            mock_settings.APP_URL = "http://localhost:3000"
             url = await billing_service.create_checkout_session(test_user, "starter", db_session)
 
     assert url == "https://stripe.com/pay/new"
@@ -101,7 +106,12 @@ async def test_checkout_reuses_existing_customer(
         return mock_session
 
     with patch("app.services.billing_service.asyncio.to_thread", side_effect=fake_to_thread), \
-         patch("app.services.billing_service._init_stripe"):
+         patch("app.services.billing_service._init_stripe"), \
+         patch("app.services.billing_service.settings") as mock_settings:
+        mock_settings.STRIPE_PRICE_ID_STARTER = "price_test_starter"
+        mock_settings.STRIPE_PRICE_ID_PRO = "price_test_pro"
+        mock_settings.STRIPE_PRICE_ID_AGENCY = "price_test_agency"
+        mock_settings.APP_URL = "http://localhost:3000"
         await billing_service.create_checkout_session(test_user, "starter", db_session)
 
     # Customer.create should NOT have been called (only Session.create)

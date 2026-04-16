@@ -28,27 +28,21 @@ def _init_stripe() -> None:
         raise HTTPException(503, "Stripe not configured — set STRIPE_SECRET_KEY in .env")
 
 
-def _price_id_for_plan(plan_id: str) -> str:
-    mapping = {
-        "starter": settings.STRIPE_PRICE_STARTER,
-        "pro": settings.STRIPE_PRICE_PRO,
-        "agency": settings.STRIPE_PRICE_AGENCY,
-    }
-    price = mapping.get(plan_id, "")
-    if not price:
-        raise HTTPException(400, f"Stripe price not configured for plan '{plan_id}'")
-    return price
-
-
 async def create_checkout_session(user: User, plan_id: str, db: AsyncSession) -> str:
     """Create Stripe Checkout Session and return the URL."""
     _init_stripe()
 
     plan_result = await db.execute(select(Plan).where(Plan.id == plan_id))
-    if plan_result.scalar_one_or_none() is None:
+    plan = plan_result.scalar_one_or_none()
+    if plan is None:
         raise HTTPException(400, "Invalid plan_id")
 
-    price_id = _price_id_for_plan(plan_id)
+    price_id = (
+        getattr(settings, f"STRIPE_PRICE_ID_{plan.id.upper()}", "")
+        or plan.stripe_price_id
+    )
+    if not price_id:
+        raise HTTPException(400, f"No Stripe price ID configured for plan {plan.id}")
 
     sub_result = await db.execute(select(Subscription).where(Subscription.user_id == user.id))
     sub = sub_result.scalar_one_or_none()
