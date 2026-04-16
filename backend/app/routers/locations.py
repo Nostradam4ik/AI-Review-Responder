@@ -71,7 +71,7 @@ async def sync_locations(
         plan_result = await db.execute(select(Plan).where(Plan.id == sub.plan_id))
         plan = plan_result.scalar_one_or_none()
         if plan:
-            max_locations = plan.features.get("max_locations", 1)
+            max_locations = plan.max_locations
 
     synced = []
     for loc_data in gmb_locations:

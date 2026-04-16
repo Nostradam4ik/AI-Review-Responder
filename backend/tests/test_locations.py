@@ -158,8 +158,8 @@ async def test_sync_locations_respects_starter_plan_limit(
     test_user,
     active_subscription,
 ):
-    """Starter plan (max 1 location from plan.features) enforced during sync."""
-    # Starter plan has max_locations=1 in features
+    """Starter plan (max_locations=1 from plan.max_locations column) enforced during sync."""
+    # Starter plan has max_locations=1 as a column on Plan (not in features dict)
     existing = Location(
         id=uuid.uuid4(),
         user_id=test_user.id,
@@ -183,6 +183,35 @@ async def test_sync_locations_respects_starter_plan_limit(
         resp = await client.post("/locations/sync", headers=auth_headers)
 
     # Should be 402 location_limit_reached
+    assert resp.status_code == 402
+    assert "location_limit_reached" in resp.json()["detail"]
+
+
+async def test_sync_locations_pro_plan_allows_three(
+    client: AsyncClient,
+    auth_headers,
+    db_session: AsyncSession,
+    test_user,
+    pro_subscription,
+):
+    """Pro plan (max_locations=3 from plan.max_locations column) allows 3, blocks 4th."""
+    three_locations = [_gmb_location(name=f"Loc {i}") for i in range(3)]
+
+    mock_gmb = AsyncMock()
+    mock_gmb.get_locations = AsyncMock(return_value=three_locations)
+
+    with patch("app.routers.locations.get_gmb_service", return_value=mock_gmb):
+        resp = await client.post("/locations/sync", headers=auth_headers)
+
+    assert resp.status_code == 200
+    assert resp.json()["new"] == 3
+
+    # A 4th location must be blocked
+    mock_gmb.get_locations = AsyncMock(return_value=[_gmb_location(name="Loc 3")])
+
+    with patch("app.routers.locations.get_gmb_service", return_value=mock_gmb):
+        resp = await client.post("/locations/sync", headers=auth_headers)
+
     assert resp.status_code == 402
     assert "location_limit_reached" in resp.json()["detail"]
 
