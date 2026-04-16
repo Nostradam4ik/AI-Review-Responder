@@ -14,6 +14,7 @@ Authenticated flow (owner):
 """
 import secrets
 import uuid
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -56,8 +57,15 @@ async def create_collection_link(
     if not location or location.user_id != current_user.id:
         raise HTTPException(404, "Location not found")
 
-    if not body.google_maps_url.startswith("https://"):
-        raise HTTPException(400, "google_maps_url must be a valid https URL")
+    GOOGLE_MAPS_DOMAINS = (
+        "maps.google.com", "www.google.com/maps",
+        "goo.gl/maps", "maps.app.goo.gl", "g.page",
+    )
+    parsed = urlparse(body.google_maps_url)
+    if not (parsed.scheme == "https" and
+            any(parsed.netloc.endswith(d) or parsed.path.startswith(f"/{d}")
+                for d in GOOGLE_MAPS_DOMAINS)):
+        raise HTTPException(400, "Must be a valid Google Maps URL")
 
     slug = secrets.token_urlsafe(8)  # ~11 chars, URL-safe, unique enough
 

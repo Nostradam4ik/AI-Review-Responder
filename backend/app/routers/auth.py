@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core.crypto import encrypt_token
+from app.core.limiter import limiter
 from app.core.security import (
     create_access_token,
     create_email_token,
@@ -137,12 +138,6 @@ async def callback(
     return RedirectResponse(f"{settings.FRONTEND_URL}/auth/callback?token={jwt_token}")
 
 
-@router.get("/me")
-async def me(db: AsyncSession = Depends(get_db)):
-    """Placeholder — real version uses get_current_user dependency."""
-    return {"message": "Use Authorization: Bearer <token> header"}
-
-
 @router.get("/mock-login")
 async def mock_login(db: AsyncSession = Depends(get_db)):
     """Return a JWT for test@test.com — development only."""
@@ -183,7 +178,8 @@ class ResetPasswordRequest(BaseModel):
 
 
 @router.post("/register", status_code=201)
-async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def register(request: Request, body: RegisterRequest, db: AsyncSession = Depends(get_db)):
     """Create account with email/password, send verification email."""
     if len(body.password) < 8:
         raise HTTPException(400, "Password must be at least 8 characters")
@@ -225,7 +221,8 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/login")
-async def login_email(body: LoginRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def login_email(request: Request, body: LoginRequest, db: AsyncSession = Depends(get_db)):
     """Authenticate with email/password, return JWT."""
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
@@ -264,7 +261,8 @@ async def verify_email(token: str = Query(...), db: AsyncSession = Depends(get_d
 
 
 @router.post("/forgot-password")
-async def forgot_password(body: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def forgot_password(request: Request, body: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
     """Send password-reset email (always returns 200 to avoid user enumeration)."""
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()

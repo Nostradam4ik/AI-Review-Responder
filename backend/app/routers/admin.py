@@ -145,10 +145,9 @@ async def list_users(
     # Build filter conditions
     conditions = [User.is_active == True]  # noqa: E712
     if search:
-        search_escaped = search.replace("%", r"\%").replace("_", r"\_")
-        ilike = f"%{search_escaped}%"
+        safe_search = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         conditions.append(
-            or_(User.email.ilike(ilike), User.business_name.ilike(ilike))
+            or_(User.email.ilike(f"%{safe_search}%", escape="\\"), User.business_name.ilike(f"%{safe_search}%", escape="\\"))
         )
     if status == "trial":
         conditions.extend([

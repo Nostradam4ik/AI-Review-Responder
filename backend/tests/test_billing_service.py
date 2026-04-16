@@ -228,19 +228,25 @@ async def test_get_billing_status_custom_cap_override(
 
 # ── Unit tests: pure functions ────────────────────────────────────────────────
 
-def test_price_id_unknown_plan():
-    """_price_id_for_plan with unknown plan_id → HTTPException 400 (line 39)."""
+async def test_no_price_id_configured_raises_400(
+    db_session: AsyncSession,
+    test_user: User,
+    trial_subscription: Subscription,
+):
+    """create_checkout_session raises 400 when STRIPE_PRICE_ID_* is empty and plan.stripe_price_id is empty."""
     from fastapi import HTTPException
-    from app.services.billing_service import _price_id_for_plan
 
-    with patch("app.services.billing_service.settings") as ms:
-        ms.STRIPE_PRICE_STARTER = ""
-        ms.STRIPE_PRICE_PRO = ""
-        ms.STRIPE_PRICE_AGENCY = ""
+    with patch("app.services.billing_service._init_stripe"), \
+         patch("app.services.billing_service.settings") as ms:
+        ms.STRIPE_PRICE_ID_STARTER = ""
+        ms.STRIPE_PRICE_ID_PRO = ""
+        ms.STRIPE_PRICE_ID_AGENCY = ""
+        ms.APP_URL = "http://localhost:3000"
         with pytest.raises(HTTPException) as exc:
-            _price_id_for_plan("unknown_xyz")
+            await billing_service.create_checkout_session(test_user, "starter", db_session)
 
     assert exc.value.status_code == 400
+    assert "No Stripe price ID configured" in exc.value.detail
 
 
 def test_effective_ai_limit_none_inputs():
