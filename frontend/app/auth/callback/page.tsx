@@ -2,7 +2,7 @@
 
 import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { setToken, getToken } from "@/lib/auth";
+import { setToken, getToken, removeToken } from "@/lib/auth";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -31,7 +31,7 @@ function CallbackHandler() {
           router.replace("/dashboard");
         }
       })
-      .catch(() => router.replace("/dashboard"));
+      .catch(() => { removeToken(); router.replace("/login"); });
   }, [router, searchParams]);
 
   return (

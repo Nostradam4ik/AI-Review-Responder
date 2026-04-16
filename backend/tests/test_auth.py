@@ -205,8 +205,8 @@ async def test_telegram_webhook_already_linked(raw_client: AsyncClient, db_sessi
 
 # ── Google OAuth callback ─────────────────────────────────────────────────────
 
-async def test_oauth_callback_sets_httponly_cookie():
-    """GET /auth/callback exchanges code → JWT set as HttpOnly cookie, NOT in URL (Bug 9 regression)."""
+async def test_oauth_callback_passes_jwt_in_url():
+    """GET /auth/callback exchanges code → JWT passed as ?token= query param in redirect URL."""
     # Mock both Google API calls
     token_response = MagicMock()
     token_response.status_code = 200
@@ -241,14 +241,12 @@ async def test_oauth_callback_sets_httponly_cookie():
     # Should redirect
     assert resp.status_code in (302, 307)
 
-    # Token must NOT be in the redirect URL (Bug 9 fix)
+    # Token must be present in the redirect URL as a query param
     location = resp.headers.get("location", "")
-    assert "token=" not in location
+    assert "token=" in location
 
-    # Token must be in HttpOnly cookie
-    set_cookie = resp.headers.get("set-cookie", "")
-    assert "access_token=" in set_cookie
-    assert "HttpOnly" in set_cookie
+    # No HttpOnly cookie should be set
+    assert "access_token" not in resp.headers.get("set-cookie", "")
 
 
 async def test_oauth_callback_missing_code():

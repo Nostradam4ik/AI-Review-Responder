@@ -131,19 +131,10 @@ async def callback(
         await db.flush()
         await send_welcome_email(user.email, user.business_name or user.email)
 
-    # Issue our own JWT and set as HttpOnly cookie to avoid leaking into
-    # browser history, referrer headers, and server access logs.
+    # Issue our own JWT and pass it as a URL query param so the frontend
+    # can read it from searchParams and store it in localStorage.
     jwt_token = create_access_token({"sub": str(user.id)})
-    response = RedirectResponse(f"{settings.FRONTEND_URL}/auth/callback")
-    response.set_cookie(
-        key="access_token",
-        value=jwt_token,
-        httponly=True,
-        secure=settings.ENVIRONMENT != "development",
-        samesite="lax",
-        max_age=60 * 60 * 24 * 7,  # 7 days
-    )
-    return response
+    return RedirectResponse(f"{settings.FRONTEND_URL}/auth/callback?token={jwt_token}")
 
 
 @router.get("/me")
