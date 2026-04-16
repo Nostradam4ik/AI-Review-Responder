@@ -1,120 +1,38 @@
-name: CI
-
+name: Backend CI
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
     branches: [main]
-  workflow_dispatch:
 
 jobs:
-  # ── Tests + Coverage ────────────────────────────────────────────────────────
   test:
     runs-on: ubuntu-latest
-
     services:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_USER: testuser
-          POSTGRES_PASSWORD: testpass
-          POSTGRES_DB: testdb
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: reviewdb_test
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 5
     env:
-      # psycopg3 driver — matches requirements.txt (psycopg[binary])
-      DATABASE_URL: postgresql+psycopg://testuser:testpass@localhost:5432/testdb
-      # Conftest reads PYTEST_DB_URL to build the test engine
-      PYTEST_DB_URL: postgresql+psycopg://testuser:testpass@localhost:5432/testdb
-
-      # Required by app.config.Settings (no defaults — must be present)
-      SECRET_KEY: test-secret-key-for-ci-only-do-not-use-in-production
-      GOOGLE_CLIENT_ID: dummy-google-client-id-for-ci
-      GOOGLE_CLIENT_SECRET: dummy-google-client-secret-for-ci
+      DATABASE_URL: postgresql+psycopg://postgres:test@localhost:5432/reviewdb_test
+      # conftest.py reads PYTEST_DB_URL to build the async test engine
+      PYTEST_DB_URL: postgresql+psycopg://postgres:test@localhost:5432/reviewdb_test
+      SECRET_KEY: test-secret-key-minimum-32-characters-long
+      GOOGLE_CLIENT_ID: test
+      GOOGLE_CLIENT_SECRET: test
       GOOGLE_REDIRECT_URI: http://localhost:8000/auth/callback
-      GROQ_API_KEY: dummy_groq_key_for_ci
-
-      # Optional settings — real values live in GitHub Secrets for production
-      STRIPE_SECRET_KEY: sk_test_dummy_for_ci
-      STRIPE_WEBHOOK_SECRET: whsec_dummy_for_ci
-      FRONTEND_URL: http://localhost:3000
-      APP_URL: http://localhost:3000
+      GROQ_API_KEY: test-key
+      TOKEN_ENCRYPTION_KEY: test-encryption-key-32-characters!
       ENVIRONMENT: test
-      AUTO_VERIFY_EMAIL: "true"
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
-      - name: Cache pip dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Install application dependencies
-        run: pip install -r backend/requirements.txt
-
-      - name: Install test dependencies
-        run: pip install pytest pytest-asyncio pytest-cov httpx freezegun
-
-      - name: Run Alembic migrations
-        working-directory: backend
-        run: alembic upgrade head
-
-      - name: Run tests with coverage
-        working-directory: backend
-        run: |
-          pytest \
-            --cov=app \
-            --cov-report=xml:coverage.xml \
-            --cov-report=term-missing \
-            --tb=short \
-            -v
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./backend/coverage.xml
-          fail_ci_if_error: false
-
-      - name: Add coverage comment to PR
-        if: github.event_name == 'pull_request'
-        uses: MishaKav/pytest-coverage-comment@main
-        with:
-          pytest-xml-coverage-path: ./backend/coverage.xml
-          title: Test Coverage Report
-
-  # ── Lint ────────────────────────────────────────────────────────────────────
-  lint:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install ruff
-        run: pip install ruff
-
-      - name: Run ruff
-        run: ruff check backend/app/ --output-format=github
-        continue-on-error: true
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r backend/requirements.txt
+      - run: cd backend && python -m pytest tests/ -x --tb=short -q
