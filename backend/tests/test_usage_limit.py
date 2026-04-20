@@ -240,12 +240,12 @@ async def test_expired_active_subscription_raises_402(
 async def test_single_ai_generation_creates_exactly_one_usage_log(
     db_session: AsyncSession,
     test_user: User,
-    trial_subscription: Subscription,
+    active_subscription: Subscription,
 ):
-    """Calling generate endpoint → exactly 1 UsageLog entry, not 2 (Bug 4 regression).
+    """check_usage_limit (paid) + generate_and_save → exactly 1 UsageLog, not 2.
 
-    check_usage_limit does NOT log for trial users.
-    ai_service.generate_and_save writes the log once.
+    check_usage_limit is the sole writer of UsageLog for paid subscriptions.
+    generate_and_save must NOT write a UsageLog entry.
     Total must be exactly 1.
     """
     from app.models.location import Location
@@ -272,6 +272,9 @@ async def test_single_ai_generation_creates_exactly_one_usage_log(
     )
     db_session.add(review)
     await db_session.flush()
+
+    # Simulate the real endpoint flow: check_usage_limit first, then generate
+    await check_usage_limit(test_user, "ai_generate", db_session)
 
     mock_provider = MagicMock()
     mock_provider.MODEL = "test-model"
