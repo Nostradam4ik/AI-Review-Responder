@@ -3,7 +3,7 @@
 import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { setToken } from "@/lib/auth";
+import { setToken, setRefreshToken } from "@/lib/auth";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -35,6 +35,7 @@ function LoginForm() {
       if (!res.ok) throw new Error(data.detail || "Login failed");
 
       setToken(data.access_token);
+      if (data.refresh_token) setRefreshToken(data.refresh_token);
       router.replace(data.onboarding_done === false ? "/onboarding" : "/dashboard");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Login failed");

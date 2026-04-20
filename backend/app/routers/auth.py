@@ -1,11 +1,12 @@
+import hmac
 import uuid
 from datetime import datetime, timezone, timedelta
 from urllib.parse import urlencode
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +16,8 @@ from app.core.limiter import limiter
 from app.core.security import (
     create_access_token,
     create_email_token,
+    create_refresh_token,
+    decode_access_token,
     decode_email_token,
     hash_password,
     verify_password,
@@ -132,10 +135,15 @@ async def callback(
         await db.flush()
         await send_welcome_email(user.email, user.business_name or user.email)
 
-    # Issue our own JWT and pass it as a URL query param so the frontend
-    # can read it from searchParams and store it in localStorage.
     jwt_token = create_access_token({"sub": str(user.id)})
-    return RedirectResponse(f"{settings.FRONTEND_URL}/auth/callback?token={jwt_token}")
+    refresh = create_refresh_token(str(user.id))
+    response = RedirectResponse(f"{settings.FRONTEND_URL}/auth/callback#token={jwt_token}")
+    response.set_cookie(
+        "refresh_token", refresh,
+        httponly=True, secure=True, samesite="lax",
+        max_age=60 * 60 * 24 * 30,
+    )
+    return response
 
 
 @router.get("/mock-login")
@@ -159,7 +167,7 @@ async def mock_login(db: AsyncSession = Depends(get_db)):
 
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(..., min_length=8, max_length=128)
     business_name: str = ""
 
 
@@ -174,7 +182,7 @@ class ForgotPasswordRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     token: str
-    new_password: str
+    new_password: str = Field(..., min_length=8, max_length=128)
 
 
 @router.post("/register", status_code=201)
@@ -183,6 +191,8 @@ async def register(request: Request, body: RegisterRequest, db: AsyncSession = D
     """Create account with email/password, send verification email."""
     if len(body.password) < 8:
         raise HTTPException(400, "Password must be at least 8 characters")
+    if len(body.password) > 128:
+        raise HTTPException(400, "Password must not exceed 128 characters")
 
     existing = await db.execute(select(User).where(User.email == body.email))
     if existing.scalar_one_or_none():
@@ -234,8 +244,10 @@ async def login_email(request: Request, body: LoginRequest, db: AsyncSession = D
         raise HTTPException(403, "Please verify your email before logging in")
 
     jwt_token = create_access_token({"sub": str(user.id)})
+    refresh = create_refresh_token(str(user.id))
     return {
         "access_token": jwt_token,
+        "refresh_token": refresh,
         "token_type": "bearer",
         "onboarding_done": user.onboarding_done,
     }
@@ -277,33 +289,86 @@ async def reset_password(body: ResetPasswordRequest, db: AsyncSession = Depends(
     """Apply new password from reset token."""
     try:
         email = decode_email_token(body.token, "reset")
+        raw_payload = decode_access_token(body.token)
+        token_iat = raw_payload.get("iat", 0)
     except ValueError as e:
         raise HTTPException(400, str(e))
 
     if len(body.new_password) < 8:
         raise HTTPException(400, "Password must be at least 8 characters")
+    if len(body.new_password) > 128:
+        raise HTTPException(400, "Password must not exceed 128 characters")
 
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(404, "User not found")
 
+    if user.password_changed_at:
+        changed_ts = user.password_changed_at.timestamp()
+        if token_iat <= changed_ts:
+            raise HTTPException(400, "Reset link has already been used")
+
     user.password_hash = hash_password(body.new_password)
+    user.password_changed_at = datetime.now(timezone.utc)
     await db.commit()
     return {"message": "Password updated successfully"}
+
+
+# ── Token refresh ────────────────────────────────────────────────────────────
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
+@router.post("/refresh")
+async def refresh_token(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
+    """Exchange a valid refresh token for a new access token."""
+    from jose import JWTError
+    try:
+        payload = decode_access_token(body.refresh_token)
+    except JWTError:
+        raise HTTPException(401, "Invalid refresh token")
+
+    if payload.get("type") != "refresh":
+        raise HTTPException(401, "Not a refresh token")
+
+    user_id = payload.get("sub")
+    try:
+        user = await db.get(User, uuid.UUID(user_id))
+    except (ValueError, TypeError):
+        raise HTTPException(401, "Invalid token subject")
+
+    if not user or not user.is_active:
+        raise HTTPException(401, "User not found")
+
+    new_access_token = create_access_token({"sub": user_id})
+    return {"access_token": new_access_token, "token_type": "bearer"}
 
 
 # ── Telegram webhook ─────────────────────────────────────────────────────────
 
 
 @router.post("/telegram/webhook")
-async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db)):
+async def telegram_webhook(
+    request: Request,
+    x_telegram_bot_api_secret_token: str = Header(None, alias="X-Telegram-Bot-Api-Secret-Token"),
+    db: AsyncSession = Depends(get_db),
+):
     """Handle incoming Telegram updates.
 
     When a user opens the deep link t.me/<bot>?start=<user_id>,
     Telegram sends a message /start <user_id> to this webhook.
     We use the payload to link the Telegram chat_id to the user account.
     """
+    expected_secret = settings.TELEGRAM_WEBHOOK_SECRET
+    if expected_secret:
+        if not x_telegram_bot_api_secret_token or not hmac.compare_digest(
+            x_telegram_bot_api_secret_token, expected_secret
+        ):
+            raise HTTPException(status_code=401, detail="Invalid webhook secret")
+
     try:
         data = await request.json()
     except Exception:

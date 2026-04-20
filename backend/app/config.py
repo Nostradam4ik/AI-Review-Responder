@@ -11,7 +11,11 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_TOKEN: str = ""
     TELEGRAM_CHAT_ID: str = ""
     TELEGRAM_BOT_USERNAME: str = "ReviewAIresponderbot"
+    TELEGRAM_WEBHOOK_SECRET: str = ""
     SECRET_KEY: str
+    EMAIL_SECRET_KEY: str = ""
+    # If empty, falls back to SECRET_KEY (backward compatible)
+    # Generate: python -c "import secrets; print(secrets.token_hex(32))"
     LLM_PROVIDER: str = "groq"
     FRONTEND_URL: str = "http://localhost:3000"
     APP_URL: str = "http://localhost:3000"
@@ -27,9 +31,17 @@ class Settings(BaseSettings):
             raise ValueError("SECRET_KEY must be at least 32 characters")
         return v
 
+    ENVIRONMENT: str = "production"
+
     @field_validator("TOKEN_ENCRYPTION_KEY")
     @classmethod
-    def token_key_valid(cls, v: str) -> str:
+    def token_key_valid(cls, v: str, info) -> str:
+        environment = info.data.get("ENVIRONMENT", "production")
+        if environment == "production" and not v:
+            raise ValueError(
+                "TOKEN_ENCRYPTION_KEY is required in production. "
+                "Generate one with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+            )
         if v and len(v) < 32:
             raise ValueError("TOKEN_ENCRYPTION_KEY must be at least 32 characters if set")
         return v
@@ -53,7 +65,6 @@ class Settings(BaseSettings):
     FROM_EMAIL: str = "noreply@yourapp.com"
     # Set to true in dev to skip email verification (useful when Resend domain isn't verified)
     AUTO_VERIFY_EMAIL: bool = False
-    ENVIRONMENT: str = "production"
 
     class Config:
         env_file = (".env", "../.env")

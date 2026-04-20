@@ -1,5 +1,5 @@
 import axios from "axios";
-import { getToken, logout } from "./auth";
+import { getToken, getRefreshToken, setToken, setRefreshToken, logout } from "./auth";
 import type { CollectionLink, Location, ReviewList, Response, Tone } from "@/types";
 
 export interface UserProfile {
@@ -94,11 +94,35 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 → logout, 402 → redirect to billing
+// Handle 401 (try refresh first) → logout, 402 → redirect to billing
+let _refreshing: Promise<string | null> | null = null;
+
 api.interceptors.response.use(
   (res) => res,
-  (err) => {
-    if (err.response?.status === 401) {
+  async (err) => {
+    const original = err.config;
+    if (err.response?.status === 401 && !original._retried) {
+      original._retried = true;
+      const refreshToken = getRefreshToken();
+      if (refreshToken) {
+        if (!_refreshing) {
+          _refreshing = axios
+            .post(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/auth/refresh`, {
+              refresh_token: refreshToken,
+            })
+            .then((r) => {
+              setToken(r.data.access_token);
+              return r.data.access_token as string;
+            })
+            .catch(() => null)
+            .finally(() => { _refreshing = null; });
+        }
+        const newToken = await _refreshing;
+        if (newToken) {
+          original.headers.Authorization = `Bearer ${newToken}`;
+          return api(original);
+        }
+      }
       logout();
     } else if (err.response?.status === 402) {
       const detail = err.response?.data?.detail || "upgrade_required";

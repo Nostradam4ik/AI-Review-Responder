@@ -25,6 +25,9 @@ class User(Base):
 
     # Email/password auth
     password_hash: Mapped[str | None] = mapped_column(Text)
+    password_changed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
     email_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     onboarding_done: Mapped[bool] = mapped_column(Boolean, default=False)
 

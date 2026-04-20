@@ -1,17 +1,16 @@
 "use client";
 
 import { useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { setToken, getToken, removeToken } from "@/lib/auth";
+import { useRouter } from "next/navigation";
+import { setToken, removeToken } from "@/lib/auth";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 function CallbackHandler() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
-    const token = searchParams.get("token");
+    const token = new URLSearchParams(window.location.hash.slice(1)).get("token");
     if (!token) {
       router.replace("/login");
       return;
@@ -32,7 +31,7 @@ function CallbackHandler() {
         }
       })
       .catch(() => { removeToken(); router.replace("/login"); });
-  }, [router, searchParams]);
+  }, [router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center">
