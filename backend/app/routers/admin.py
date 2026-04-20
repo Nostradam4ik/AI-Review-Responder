@@ -468,7 +468,13 @@ async def get_cost_monitor(
     )
     report_count = report_result.scalar() or 0
 
-    total_response_calls = sum(r.total_calls for r in rows)
+    total_calls_result = await db.execute(
+        select(func.count()).where(
+            UsageLog.action_type.in_(["ai_generate", "ai_publish"]),
+            UsageLog.billing_period == period,
+        )
+    )
+    total_response_calls = total_calls_result.scalar() or 0
     estimated_response_cost = total_response_calls * 0.000026
     estimated_report_cost = report_count * 0.003
 
