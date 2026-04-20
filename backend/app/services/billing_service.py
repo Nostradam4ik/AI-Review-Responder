@@ -238,13 +238,14 @@ async def handle_webhook(payload: bytes, sig_header: str, db: AsyncSession) -> N
         await db.commit()
         if user:
             from app.services.email_service import send_subscription_confirmed_email
-            _plan_prices = {"starter": 19, "pro": 39, "agency": 79}
+            plan_result = await db.execute(select(Plan).where(Plan.id == plan_id))
+            plan = plan_result.scalar_one_or_none()
             try:
                 await send_subscription_confirmed_email(
                     user.email,
                     user.business_name or user.email,
                     plan_id.capitalize(),
-                    _plan_prices.get(plan_id, 0),
+                    plan.price_eur if plan else 0,
                 )
             except Exception as e:
                 logger.warning("Failed to send subscription confirmed email: %s", e)

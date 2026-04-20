@@ -14,7 +14,6 @@ from app.database import get_db
 from app.models.location import Location
 from app.models.response import Response
 from app.models.review import Review
-from app.models.usage_log import UsageLog
 from app.models.user import User
 from app.schemas.response import ResponseCreate, ResponseEdit, ResponseRead
 from app.services.ai_service import generate_and_save
@@ -113,11 +112,6 @@ async def generate_response(
             if published:
                 response.published_at = datetime.now(timezone.utc)
                 review.status = "responded"
-                db.add(UsageLog(
-                    user_id=current_user.id,
-                    action_type="ai_publish",
-                    billing_period=datetime.now(timezone.utc).strftime("%Y-%m"),
-                ))
                 await db.commit()
                 await db.refresh(response)
         except HTTPException as exc:
