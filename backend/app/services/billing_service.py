@@ -269,6 +269,9 @@ async def handle_webhook(payload: bytes, sig_header: str, db: AsyncSession) -> N
                     UsageLog.created_at < cutoff,
                 )
             )
+            user = await db.get(User, sub.user_id)
+            if user:
+                user.plan = sub.plan_id
             await db.commit()
 
     elif event_type == "invoice.payment_failed":
