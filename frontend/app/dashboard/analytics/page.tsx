@@ -168,26 +168,41 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Reviews by day */}
-      <div className="bg-[#111118] border border-[#2A2A3E] rounded-xl p-5 space-y-4">
-        <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
-          Reviews per Day (last 30 days)
-        </p>
+      <div className="bg-[#111118] border border-[#2A2A3E] rounded-xl p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+            Reviews per Day (last 30 days)
+          </p>
+          {data.reviews_by_day.length > 0 && (
+            <span className="text-xs text-slate-600">max {maxDayCount}/day</span>
+          )}
+        </div>
         {data.reviews_by_day.length === 0 ? (
           <p className="text-sm text-slate-600 italic">
             No reviews in the last 30 days.
           </p>
         ) : (
-          <div className="flex items-end gap-0.5 h-16">
-            {data.reviews_by_day.map((d, i) => (
-              <div
-                key={i}
-                className="flex-1 bg-teal-500 rounded-t-sm min-h-[2px] opacity-80 hover:opacity-100 transition-opacity"
-                style={{
-                  height: `${(d.count / maxDayCount) * 100}%`,
-                }}
-                title={`${d.date}: ${d.count} review${d.count !== 1 ? "s" : ""}`}
-              />
-            ))}
+          <div className="space-y-1">
+            {/* Bar chart — pixel heights avoid flexbox % resolution issues */}
+            <div
+              className="flex items-end gap-px border-b border-[#2A2A3E]"
+              style={{ height: 64 }}
+            >
+              {data.reviews_by_day.map((d, i) => (
+                <div
+                  key={i}
+                  className="flex-1 bg-teal-500 rounded-t-sm opacity-80 hover:opacity-100 transition-opacity"
+                  style={{ height: Math.max(2, (d.count / maxDayCount) * 64) }}
+                  title={`${d.date}: ${d.count} review${d.count !== 1 ? "s" : ""}`}
+                />
+              ))}
+            </div>
+            {/* X-axis labels */}
+            <div className="flex justify-between text-[10px] text-slate-600 px-px">
+              <span>{data.reviews_by_day[0]?.date.slice(5)}</span>
+              <span>{data.reviews_by_day[Math.floor(data.reviews_by_day.length / 2)]?.date.slice(5)}</span>
+              <span>{data.reviews_by_day[data.reviews_by_day.length - 1]?.date.slice(5)}</span>
+            </div>
           </div>
         )}
       </div>

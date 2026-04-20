@@ -13,10 +13,10 @@ import { TrialExpiredBanner } from "@/components/TrialExpiredBanner";
 import { LockedButton } from "@/components/LockedButton";
 import { useSubscription } from "@/hooks/useSubscription";
 
-// Simple SVG sparkline chart (last 30 days by week buckets)
+// SVG sparkline — rating trend over last 30 days (8 weekly buckets)
 function RatingSparkline({ reviews }: { reviews: { review_date?: string | null; rating: number }[] }) {
   const buckets = 8;
-  const data: number[] = Array(buckets).fill(0);
+  const sums: number[] = Array(buckets).fill(0);
   const counts: number[] = Array(buckets).fill(0);
   const now = Date.now();
   const span = 30 * 24 * 3600 * 1000;
@@ -27,11 +27,11 @@ function RatingSparkline({ reviews }: { reviews: { review_date?: string | null; 
     if (age < 0 || age > span) return;
     const idx = Math.min(buckets - 1, Math.floor((age / span) * buckets));
     const bucket = buckets - 1 - idx;
-    data[bucket] += r.rating;
+    sums[bucket] += r.rating;
     counts[bucket]++;
   });
 
-  const points = data.map((sum, i) => (counts[i] ? sum / counts[i] : null));
+  const points = sums.map((sum, i) => (counts[i] ? sum / counts[i] : null));
   const hasData = points.some((p) => p !== null);
   if (!hasData) return <p className="text-xs text-slate-600 italic">Not enough data yet</p>;
 
@@ -42,24 +42,60 @@ function RatingSparkline({ reviews }: { reviews: { review_date?: string | null; 
     return prev ?? next ?? 3;
   }) as number[];
 
-  const W = 200, H = 48, pad = 4;
+  const W = 200, H = 56, padX = 6, padY = 6;
   const minV = 1, maxV = 5;
-  const xs = filled.map((_, i) => pad + (i / (buckets - 1)) * (W - pad * 2));
-  const ys = filled.map((v) => H - pad - ((v - minV) / (maxV - minV)) * (H - pad * 2));
-  const d = xs.map((x, i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(" ");
-  const area = d + ` L${xs[xs.length - 1].toFixed(1)},${H} L${xs[0].toFixed(1)},${H} Z`;
+  const toX = (i: number) => padX + (i / (buckets - 1)) * (W - padX * 2);
+  const toY = (v: number) => H - padY - ((v - minV) / (maxV - minV)) * (H - padY * 2);
+
+  const xs = filled.map((_, i) => toX(i));
+  const ys = filled.map((v) => toY(v));
+  const linePath = xs.map((x, i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(" ");
+  const areaPath = linePath + ` L${xs[xs.length - 1].toFixed(1)},${H} L${xs[0].toFixed(1)},${H} Z`;
+
+  const validRatings = points.filter((p): p is number => p !== null);
+  const avgRating = validRatings.length
+    ? (validRatings.reduce((a, b) => a + b, 0) / validRatings.length).toFixed(1)
+    : null;
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-10">
-      <defs>
-        <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#6366f1" stopOpacity="0.3" />
-          <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={area} fill="url(#sparkGrad)" />
-      <path d={d} fill="none" stroke="#6366f1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    <div className="space-y-1">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 48 }}>
+        <defs>
+          <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#6366f1" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {/* Y-axis reference lines at 1★, 3★, 5★ */}
+        {([1, 3, 5] as const).map((v) => (
+          <g key={v}>
+            <line
+              x1={padX} x2={W - padX * 3}
+              y1={toY(v)} y2={toY(v)}
+              stroke="#2A2A3E" strokeWidth="0.5" strokeDasharray="2,3"
+            />
+            <text x={W - 2} y={toY(v) + 3} textAnchor="end" fontSize="6" fill="#475569">
+              {v}★
+            </text>
+          </g>
+        ))}
+        {/* Area fill + line */}
+        <path d={areaPath} fill="url(#sparkGrad)" />
+        <path d={linePath} fill="none" stroke="#6366f1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        {/* Data point dots for buckets with real data */}
+        {points.map((p, i) =>
+          p !== null ? (
+            <circle key={i} cx={xs[i]} cy={ys[i]} r="2" fill="#6366f1" />
+          ) : null
+        )}
+      </svg>
+      {/* X-axis labels */}
+      <div className="flex justify-between text-[10px] text-slate-600">
+        <span>30d ago</span>
+        {avgRating && <span className="text-indigo-400 font-medium">{avgRating}★ avg</span>}
+        <span>today</span>
+      </div>
+    </div>
   );
 }
 
