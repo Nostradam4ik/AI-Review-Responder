@@ -123,6 +123,19 @@ async def check_trial_expirations() -> None:
                 )
 
 
+async def cleanup_analytics_cache() -> None:
+    """Delete analytics_cache rows older than 7 days."""
+    from app.models.analytics_cache import AnalyticsCache
+    from sqlalchemy import delete as sa_delete
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+    async with async_session() as db:
+        await db.execute(
+            sa_delete(AnalyticsCache).where(AnalyticsCache.expires_at < cutoff)
+        )
+        await db.commit()
+
+
 def start_scheduler() -> None:
     scheduler.add_job(
         sync_all_reviews,
@@ -138,8 +151,16 @@ def start_scheduler() -> None:
         id="trial_expirations",
         replace_existing=True,
     )
+    scheduler.add_job(
+        cleanup_analytics_cache,
+        trigger="cron",
+        hour=3,
+        minute=0,
+        id="cleanup_analytics_cache",
+        replace_existing=True,
+    )
     scheduler.start()
-    logger.info("APScheduler started — syncing reviews every 30 minutes, trial checks every 24 hours")
+    logger.info("APScheduler started — syncing reviews every 30 minutes, trial checks every 24 hours, analytics cache cleanup daily at 03:00 UTC")
 
 
 def stop_scheduler() -> None:

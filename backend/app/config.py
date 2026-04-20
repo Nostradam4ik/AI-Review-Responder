@@ -27,12 +27,16 @@ class Settings(BaseSettings):
             raise ValueError("SECRET_KEY must be at least 32 characters")
         return v
 
+    @field_validator("TOKEN_ENCRYPTION_KEY")
+    @classmethod
+    def token_key_valid(cls, v: str) -> str:
+        if v and len(v) < 32:
+            raise ValueError("TOKEN_ENCRYPTION_KEY must be at least 32 characters if set")
+        return v
+
     # Stripe
     STRIPE_SECRET_KEY: str = ""
     STRIPE_WEBHOOK_SECRET: str = ""
-    STRIPE_PRICE_STARTER: str = ""
-    STRIPE_PRICE_PRO: str = ""
-    STRIPE_PRICE_AGENCY: str = ""
     STRIPE_PRICE_ID_STARTER: str = ""
     STRIPE_PRICE_ID_PRO: str = ""
     STRIPE_PRICE_ID_AGENCY: str = ""
