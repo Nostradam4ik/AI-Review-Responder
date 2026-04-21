@@ -245,12 +245,18 @@ async def login_email(request: Request, body: LoginRequest, db: AsyncSession = D
 
     jwt_token = create_access_token({"sub": str(user.id)})
     refresh = create_refresh_token(str(user.id))
-    return {
+    from fastapi.responses import JSONResponse
+    response = JSONResponse({
         "access_token": jwt_token,
-        "refresh_token": refresh,
         "token_type": "bearer",
         "onboarding_done": user.onboarding_done,
-    }
+    })
+    response.set_cookie(
+        "refresh_token", refresh,
+        httponly=True, secure=True, samesite="lax",
+        max_age=60 * 60 * 24 * 30,
+    )
+    return response
 
 
 @router.get("/verify-email")
@@ -318,16 +324,16 @@ async def reset_password(body: ResetPasswordRequest, db: AsyncSession = Depends(
 # ── Token refresh ────────────────────────────────────────────────────────────
 
 
-class RefreshRequest(BaseModel):
-    refresh_token: str
-
-
 @router.post("/refresh")
-async def refresh_token(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
-    """Exchange a valid refresh token for a new access token."""
+async def refresh_token(request: Request, db: AsyncSession = Depends(get_db)):
+    """Exchange httpOnly refresh token cookie for a new access token."""
+    token = request.cookies.get("refresh_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="No refresh token provided")
+
     from jose import JWTError
     try:
-        payload = decode_access_token(body.refresh_token)
+        payload = decode_access_token(token)
     except JWTError:
         raise HTTPException(401, "Invalid refresh token")
 
@@ -345,6 +351,15 @@ async def refresh_token(body: RefreshRequest, db: AsyncSession = Depends(get_db)
 
     new_access_token = create_access_token({"sub": user_id})
     return {"access_token": new_access_token, "token_type": "bearer"}
+
+
+@router.post("/logout")
+async def logout():
+    """Clear the httpOnly refresh token cookie."""
+    from fastapi.responses import JSONResponse
+    response = JSONResponse({"logged_out": True})
+    response.delete_cookie("refresh_token", httponly=True, secure=True, samesite="lax")
+    return response
 
 
 # ── Telegram webhook ─────────────────────────────────────────────────────────

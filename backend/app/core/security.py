@@ -46,10 +46,12 @@ def _get_email_secret() -> str:
 
 def create_email_token(email: str, purpose: str, expires_minutes: int = 60) -> str:
     """Short-lived JWT for email verification / password reset."""
+    now = datetime.now(timezone.utc)
     to_encode = {
         "sub": email,
         "purpose": purpose,
-        "exp": datetime.now(timezone.utc) + timedelta(minutes=expires_minutes),
+        "exp": now + timedelta(minutes=expires_minutes),
+        "iat": now.timestamp(),
     }
     return jwt.encode(to_encode, _get_email_secret(), algorithm=ALGORITHM)
 

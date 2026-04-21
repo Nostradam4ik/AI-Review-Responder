@@ -4,7 +4,8 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from app.core.limiter import limiter
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,7 +37,9 @@ async def require_admin(current_user: User = Depends(get_current_user)) -> User:
 # ---------------------------------------------------------------------------
 
 @router.get("/stats")
+@limiter.limit("60/minute")
 async def get_stats(
+    request: Request,
     _: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
@@ -108,7 +111,9 @@ async def get_stats(
 # ---------------------------------------------------------------------------
 
 @router.get("/users")
+@limiter.limit("60/minute")
 async def list_users(
+    request: Request,
     search: str | None = Query(None),
     status: str = Query("all"),
     page: int = Query(1, ge=1),
@@ -260,7 +265,9 @@ class ResetTrialBody(BaseModel):
 
 
 @router.post("/users/{user_id}/reset-trial")
+@limiter.limit("20/minute")
 async def reset_trial(
+    request: Request,
     user_id: str,
     body: ResetTrialBody,
     _: User = Depends(require_admin),
@@ -300,7 +307,9 @@ class ChangePlanBody(BaseModel):
 
 
 @router.post("/users/{user_id}/change-plan")
+@limiter.limit("20/minute")
 async def change_plan(
+    request: Request,
     user_id: str,
     body: ChangePlanBody,
     _: User = Depends(require_admin),
@@ -360,7 +369,9 @@ _VALID_STATUSES = ("active", "trialing", "expired", "cancelled", "past_due")
 
 
 @router.put("/users/{user_id}")
+@limiter.limit("20/minute")
 async def edit_user(
+    request: Request,
     user_id: str,
     body: EditUserBody,
     _: User = Depends(require_admin),
@@ -438,7 +449,9 @@ async def edit_user(
 # ---------------------------------------------------------------------------
 
 @router.get("/cost-monitor")
+@limiter.limit("30/minute")
 async def get_cost_monitor(
+    request: Request,
     _: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
@@ -502,7 +515,9 @@ async def get_cost_monitor(
 # ---------------------------------------------------------------------------
 
 @router.delete("/users/{user_id}")
+@limiter.limit("10/minute")
 async def delete_user(
+    request: Request,
     user_id: str,
     _: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
@@ -517,6 +532,8 @@ async def delete_user(
         raise HTTPException(404, "User not found")
     if user.is_admin:
         raise HTTPException(403, "Cannot delete an admin account")
+    if not user.is_active:
+        raise HTTPException(400, "User is already deleted")
 
     user.is_active = False
     user.email = f"deleted_{user.id}@deleted.com"

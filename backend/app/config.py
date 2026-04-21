@@ -1,4 +1,4 @@
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -33,18 +33,19 @@ class Settings(BaseSettings):
 
     ENVIRONMENT: str = "production"
 
-    @field_validator("TOKEN_ENCRYPTION_KEY")
-    @classmethod
-    def token_key_valid(cls, v: str, info) -> str:
-        environment = info.data.get("ENVIRONMENT", "production")
-        if environment == "production" and not v:
+    @model_validator(mode="after")
+    def validate_production_settings(self) -> "Settings":
+        if self.ENVIRONMENT == "production" and not self.TOKEN_ENCRYPTION_KEY:
             raise ValueError(
                 "TOKEN_ENCRYPTION_KEY is required in production. "
-                "Generate one with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+                "Generate one with: python -c \"from cryptography.fernet import Fernet; "
+                "print(Fernet.generate_key().decode())\""
             )
-        if v and len(v) < 32:
+        if self.TOKEN_ENCRYPTION_KEY and len(self.TOKEN_ENCRYPTION_KEY) < 32:
             raise ValueError("TOKEN_ENCRYPTION_KEY must be at least 32 characters if set")
-        return v
+        if self.ENVIRONMENT == "production" and "*" in self.ALLOWED_ORIGINS:
+            raise ValueError("Wildcard CORS origin '*' is not allowed in production")
+        return self
 
     # Stripe
     STRIPE_SECRET_KEY: str = ""

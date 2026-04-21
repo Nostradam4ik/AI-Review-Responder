@@ -1,5 +1,5 @@
 import axios from "axios";
-import { getToken, getRefreshToken, setToken, setRefreshToken, logout } from "./auth";
+import { getToken, setToken, logout } from "./auth";
 import type { CollectionLink, Location, ReviewList, Response, Tone } from "@/types";
 
 export interface UserProfile {
@@ -103,25 +103,24 @@ api.interceptors.response.use(
     const original = err.config;
     if (err.response?.status === 401 && !original._retried) {
       original._retried = true;
-      const refreshToken = getRefreshToken();
-      if (refreshToken) {
-        if (!_refreshing) {
-          _refreshing = axios
-            .post(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/auth/refresh`, {
-              refresh_token: refreshToken,
-            })
-            .then((r) => {
-              setToken(r.data.access_token);
-              return r.data.access_token as string;
-            })
-            .catch(() => null)
-            .finally(() => { _refreshing = null; });
-        }
-        const newToken = await _refreshing;
-        if (newToken) {
-          original.headers.Authorization = `Bearer ${newToken}`;
-          return api(original);
-        }
+      if (!_refreshing) {
+        _refreshing = axios
+          .post(
+            `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/auth/refresh`,
+            null,
+            { withCredentials: true },
+          )
+          .then((r) => {
+            setToken(r.data.access_token);
+            return r.data.access_token as string;
+          })
+          .catch(() => null)
+          .finally(() => { _refreshing = null; });
+      }
+      const newToken = await _refreshing;
+      if (newToken) {
+        original.headers.Authorization = `Bearer ${newToken}`;
+        return api(original);
       }
       logout();
     } else if (err.response?.status === 402) {
