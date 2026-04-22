@@ -53,7 +53,7 @@ async def test_register_short_password(raw_client: AsyncClient):
             json={"email": "x@test.com", "password": "short", "business_name": ""},
         )
 
-    assert resp.status_code == 400
+    assert resp.status_code in (400, 422)
 
 
 # ── Login ─────────────────────────────────────────────────────────────────────

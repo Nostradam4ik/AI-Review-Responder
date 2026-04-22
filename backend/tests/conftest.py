@@ -37,6 +37,7 @@ TestSessionLocal = async_sessionmaker(test_engine, class_=AsyncSession, expire_o
 async def create_tables():
     """Create all tables once per test session, drop them on teardown."""
     async with test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     yield
     async with test_engine.begin() as conn:

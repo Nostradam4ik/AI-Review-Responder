@@ -1,4 +1,6 @@
 """User profile endpoints."""
+import re
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -79,7 +81,10 @@ async def update_me(
     if body.auto_publish is not None:
         current_user.auto_publish = body.auto_publish
     if body.response_instructions is not None:
-        current_user.response_instructions = body.response_instructions
+        instructions = re.sub(r'[\x00-\x1f\x7f]', '', body.response_instructions.strip())
+        if len(instructions) > 1000:
+            raise HTTPException(422, "response_instructions must be 1000 characters or fewer")
+        current_user.response_instructions = instructions or None
 
     await db.commit()
     await db.refresh(current_user)

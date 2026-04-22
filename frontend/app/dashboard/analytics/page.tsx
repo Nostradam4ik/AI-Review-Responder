@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BarChart2, Lock } from "lucide-react";
+import api from "@/lib/api";
 
 interface AnalyticsData {
   total_reviews: number;
@@ -39,23 +40,15 @@ export default function AnalyticsPage() {
   const [upgradeRequired, setUpgradeRequired] = useState(false);
 
   useEffect(() => {
-    const token =
-      typeof window !== "undefined" ? localStorage.getItem("air_token") : "";
-    const base =
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-    fetch(`${base}/analytics`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(async (res) => {
-        if (res.status === 402) {
-          setUpgradeRequired(true);
-          return;
-        }
-        if (!res.ok) throw new Error("Failed to load analytics");
-        setData(await res.json());
+    api.get<AnalyticsData>("/analytics")
+      .then((res) => {
+        setData(res.data);
       })
-      .catch(() => {})
+      .catch((err) => {
+        if (err.response?.status === 402) {
+          setUpgradeRequired(true);
+        }
+      })
       .finally(() => setLoading(false));
   }, []);
 

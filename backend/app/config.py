@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings
 
@@ -16,7 +18,7 @@ class Settings(BaseSettings):
     EMAIL_SECRET_KEY: str = ""
     # If empty, falls back to SECRET_KEY (backward compatible)
     # Generate: python -c "import secrets; print(secrets.token_hex(32))"
-    LLM_PROVIDER: str = "groq"
+    LLM_PROVIDER: Literal["groq"] = "groq"
     FRONTEND_URL: str = "http://localhost:3000"
     APP_URL: str = "http://localhost:3000"
 
@@ -69,6 +71,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = (".env", "../.env")
+        extra = "ignore"
 
 
 settings = Settings()

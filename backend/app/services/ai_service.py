@@ -39,7 +39,7 @@ async def generate_and_save(
         business_name=business_name,
         rating=review.rating,
         tone=tone,
-        extra_instructions=extra_instructions,
+        extra_instructions=extra_instructions[:1000] if extra_instructions else "",
     )
 
     ai_text = await provider.generate_response(context)

@@ -48,7 +48,7 @@ async def sync_all_reviews() -> None:
                 if user:
                     await _sync_user_reviews(user, db)
         except Exception as e:
-            logger.error("Error syncing reviews for user %s: %s", user_id, e)
+            logger.error("Error syncing reviews for user %s: %s", user_id, e, exc_info=True)
 
     logger.info("Scheduled review sync complete.")
 
