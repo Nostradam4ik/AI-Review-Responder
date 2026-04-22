@@ -38,6 +38,9 @@ class User(Base):
     auto_publish: Mapped[bool] = mapped_column(Boolean, default=False)
     response_instructions: Mapped[str | None] = mapped_column(Text)
 
+    # Refresh token jti — reserved for future token rotation
+    refresh_token_jti: Mapped[str | None] = mapped_column(String(64))
+
     # Admin / account state
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
