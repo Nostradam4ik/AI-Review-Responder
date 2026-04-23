@@ -23,7 +23,7 @@ from app.services import billing_service
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _event(event_type: str, data: dict) -> dict:
-    return {"type": event_type, "data": {"object": data}}
+    return {"id": "evt_test_idem", "type": event_type, "data": {"object": data}}
 
 
 def _mock_stripe_sub(sub_id: str = "sub_idem") -> MagicMock:

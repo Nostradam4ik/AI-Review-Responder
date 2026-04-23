@@ -19,7 +19,7 @@ from app.services import billing_service
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _make_stripe_event(event_type: str, data_object: dict) -> dict:
-    return {"type": event_type, "data": {"object": data_object}}
+    return {"id": "evt_test", "type": event_type, "data": {"object": data_object}}
 
 
 def _mock_stripe_customer(customer_id: str = "cus_test123"):

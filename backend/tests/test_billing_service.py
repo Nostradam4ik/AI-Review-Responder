@@ -22,7 +22,7 @@ from app.services import billing_service
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _make_event(event_type: str, data_object: dict) -> dict:
-    return {"type": event_type, "data": {"object": data_object}}
+    return {"id": "evt_test", "type": event_type, "data": {"object": data_object}}
 
 
 def _fake_stripe_sub(sub_id: str = "sub_x") -> MagicMock:

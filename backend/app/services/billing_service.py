@@ -189,6 +189,21 @@ async def handle_webhook(payload: bytes, sig_header: str, db: AsyncSession) -> N
     except stripe.error.SignatureVerificationError:
         raise HTTPException(400, "Invalid Stripe signature")
 
+    # Idempotency: skip already-processed events (Stripe retries on 5xx)
+    from sqlalchemy import text
+    existing = await db.execute(
+        text("SELECT id FROM stripe_events WHERE id = :eid"),
+        {"eid": event["id"]},
+    )
+    if existing.scalar():
+        return
+
+    await db.execute(
+        text("INSERT INTO stripe_events (id, processed_at) VALUES (:eid, now())"),
+        {"eid": event["id"]},
+    )
+    await db.commit()
+
     event_type = event["type"]
     data = event["data"]["object"]
 
