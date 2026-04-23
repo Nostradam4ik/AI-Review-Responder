@@ -79,6 +79,14 @@ export interface BillingStatus {
   is_trial_expired?: boolean;
   trial_days_remaining?: number | null;
   pro_features_available?: boolean;
+  available_plans?: Array<{
+    id: string;
+    name: string;
+    price_eur: number;
+    max_locations: number;
+    max_responses_per_month: number;
+    features: Record<string, boolean>;
+  }>;
 }
 
 const api = axios.create({

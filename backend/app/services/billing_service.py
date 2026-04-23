@@ -108,6 +108,19 @@ def _effective_ai_limit(override: int | None, plan) -> int | None:
 
 async def get_billing_status(user: User, db: AsyncSession) -> dict:
     """Return subscription status, plan info, and current month usage."""
+    all_plans_result = await db.execute(select(Plan).order_by(Plan.price_eur))
+    available_plans = [
+        {
+            "id": p.id,
+            "name": p.name,
+            "price_eur": p.price_eur,
+            "max_locations": p.max_locations,
+            "max_responses_per_month": p.max_responses_per_month,
+            "features": p.features,
+        }
+        for p in all_plans_result.scalars().all()
+    ]
+
     sub_result = await db.execute(select(Subscription).where(Subscription.user_id == user.id))
     sub = sub_result.scalar_one_or_none()
 
@@ -119,6 +132,7 @@ async def get_billing_status(user: User, db: AsyncSession) -> dict:
             "is_trial": False,
             "trial_days_remaining": None,
             "pro_features_available": False,
+            "available_plans": available_plans,
         }
 
     plan_result = await db.execute(select(Plan).where(Plan.id == sub.plan_id))
@@ -172,6 +186,7 @@ async def get_billing_status(user: User, db: AsyncSession) -> dict:
         "is_trial_expired": trial_expired,
         "trial_days_remaining": trial_days_remaining,
         "pro_features_available": pro_features_available,
+        "available_plans": available_plans,
     }
 
 

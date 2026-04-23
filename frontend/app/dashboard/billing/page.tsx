@@ -2,39 +2,25 @@
 
 import { useEffect, useState } from "react";
 import { billingApi, BillingStatus } from "@/lib/api";
-import { CheckCircle2, Zap, Building2, Rocket } from "lucide-react";
+import { CheckCircle2, Zap, Building2, Rocket, type LucideIcon } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
-const PLANS = [
-  {
-    id: "starter",
-    name: "Starter",
-    price: 19,
-    locations: 1,
-    responses: 100,
-    icon: Zap,
-    features: ["AI response generation", "Google Business sync", "Telegram alerts", "Email support"],
-  },
-  {
-    id: "pro",
-    name: "Pro",
-    price: 39,
-    locations: 3,
-    responses: 0,
-    icon: Rocket,
-    features: ["Everything in Starter", "Unlimited AI responses", "CSV export", "Auto-publish", "Custom instructions", "AI Intelligence Reports", "Priority support"],
-    popular: true,
-  },
-  {
-    id: "agency",
-    name: "Agency",
-    price: 79,
-    locations: 10,
-    responses: 0,
-    icon: Building2,
-    features: ["Everything in Pro", "10 locations", "White-label", "Dedicated support"],
-  },
-];
+const PLAN_META: Record<string, { icon: LucideIcon; popular?: boolean }> = {
+  starter: { icon: Zap },
+  pro: { icon: Rocket, popular: true },
+  agency: { icon: Building2 },
+};
+
+const BASE_FEATURES = ["AI response generation", "Google Business sync", "Email support"];
+
+const FEATURE_LABELS: Record<string, string> = {
+  telegram: "Telegram alerts",
+  auto_respond: "Auto-publish responses",
+  analytics: "AI Intelligence Reports",
+  export_csv: "CSV export",
+  white_label: "White-label",
+  priority_support: "Dedicated support",
+};
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   trialing: { label: "Free trial", color: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" },
@@ -212,19 +198,27 @@ export default function BillingPage() {
           </h2>
 
           <div className="grid gap-4 sm:grid-cols-3">
-            {PLANS.map((p) => {
+            {(status?.available_plans ?? []).map((p) => {
               const isCurrent = plan?.id === p.id;
-              const PlanIcon = p.icon;
+              const meta = PLAN_META[p.id] ?? { icon: Zap };
+              const PlanIcon = meta.icon;
+              const isPopular = meta.popular ?? false;
+              const planFeatures = [
+                ...BASE_FEATURES,
+                ...Object.entries(p.features)
+                  .filter(([, v]) => v)
+                  .map(([k]) => FEATURE_LABELS[k] ?? k),
+              ];
               return (
                 <div
                   key={p.id}
                   className={`relative flex flex-col gap-5 rounded-xl p-6 transition-all duration-150 ${
-                    p.popular
+                    isPopular
                       ? "border-2 border-indigo-500 bg-[#111118] glow-indigo"
                       : "border border-[#2A2A3E] bg-[#111118] hover:border-indigo-500/30"
                   }`}
                 >
-                  {p.popular && (
+                  {isPopular && (
                     <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[11px] font-bold px-3 py-1 rounded-full">
                       Popular
                     </span>
@@ -233,13 +227,13 @@ export default function BillingPage() {
                   <div className="flex items-start justify-between">
                     <div>
                       <div className="flex items-center gap-2 mb-2">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${p.popular ? "bg-indigo-500/20" : "bg-[#1A1A2E]"}`}>
-                          <PlanIcon className={`w-4 h-4 ${p.popular ? "text-indigo-400" : "text-slate-400"}`} />
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isPopular ? "bg-indigo-500/20" : "bg-[#1A1A2E]"}`}>
+                          <PlanIcon className={`w-4 h-4 ${isPopular ? "text-indigo-400" : "text-slate-400"}`} />
                         </div>
                         <p className="font-semibold text-white">{p.name}</p>
                       </div>
                       <p className="text-3xl font-bold text-white">
-                        €{p.price}
+                        €{p.price_eur}
                         <span className="text-sm font-normal text-slate-500">/mo</span>
                       </p>
                     </div>
@@ -248,13 +242,13 @@ export default function BillingPage() {
                   <ul className="space-y-2 flex-1">
                     <li className="text-xs text-slate-400 flex items-center gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                      {p.locations} location{p.locations > 1 ? "s" : ""}
+                      {p.max_locations} location{p.max_locations > 1 ? "s" : ""}
                     </li>
                     <li className="text-xs text-slate-400 flex items-center gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                      {p.responses === 0 ? "Unlimited" : p.responses} AI responses/mo
+                      {p.max_responses_per_month === 0 ? "Unlimited" : p.max_responses_per_month} AI responses/mo
                     </li>
-                    {p.features.map((f) => (
+                    {planFeatures.map((f) => (
                       <li key={f} className="text-xs text-slate-400 flex items-start gap-2">
                         <CheckCircle2 className="w-3.5 h-3.5 text-indigo-400 shrink-0 mt-0.5" />
                         {f}
@@ -268,7 +262,7 @@ export default function BillingPage() {
                     className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-all duration-150 active:scale-95 ${
                       isCurrent
                         ? "bg-[#1A1A2E] text-slate-500 cursor-default"
-                        : p.popular
+                        : isPopular
                         ? "bg-indigo-600 hover:bg-indigo-500 text-white"
                         : "border border-[#2A2A3E] hover:border-indigo-500/50 text-slate-300 hover:text-white"
                     } disabled:opacity-60`}
@@ -277,7 +271,7 @@ export default function BillingPage() {
                       ? "Current plan"
                       : checkoutLoading === p.id
                       ? "Redirecting..."
-                      : `Subscribe — €${p.price}/mo`}
+                      : `Subscribe — €${p.price_eur}/mo`}
                   </button>
                 </div>
               );

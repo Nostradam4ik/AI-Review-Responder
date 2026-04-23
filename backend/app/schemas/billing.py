@@ -41,3 +41,4 @@ class BillingStatusResponse(BaseModel):
     is_trial: bool = False
     trial_days_remaining: int | None = None
     pro_features_available: bool = False
+    available_plans: list[dict] = []
