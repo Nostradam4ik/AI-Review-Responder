@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from typing import Literal
@@ -368,10 +369,10 @@ async def download_intelligence_report(
     if format == "json":
         return JSONResponse({"analysis": analysis, "meta": meta})
 
-    # PDF
+    # PDF — run in thread pool: WeasyPrint is synchronous and CPU-heavy
     from app.services.pdf_report import generate_pdf_bytes
 
-    pdf_bytes = generate_pdf_bytes(analysis, meta)
+    pdf_bytes = await asyncio.to_thread(generate_pdf_bytes, analysis, meta)
 
     loc_slug = (meta.get("location_name") or "all").lower().replace(" ", "-")[:20]
     today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")

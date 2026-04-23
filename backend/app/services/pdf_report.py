@@ -89,8 +89,6 @@ def _action_card(a: dict) -> str:
 
 
 _CSS = """
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-
 @page {
     size: A4;
     margin: 2cm;
@@ -104,7 +102,7 @@ _CSS = """
 }
 
 body {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
     color: #1e293b;
     line-height: 1.5;
     font-size: 11pt;
