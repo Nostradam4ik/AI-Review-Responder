@@ -60,6 +60,8 @@ class Settings(BaseSettings):
     # python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
     TOKEN_ENCRYPTION_KEY: str = ""
 
+    REDIS_URL: str = "redis://localhost:6379/0"
+
     # Sentry error tracking (optional — leave empty to disable)
     SENTRY_DSN: str | None = None
 
