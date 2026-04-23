@@ -358,7 +358,7 @@ def generate_pdf_bytes(analysis: dict, meta: dict) -> bytes:
             {opps_html}
         </div>"""
 
-    html = f"""<!DOCTYPE html>
+    page_html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -377,4 +377,4 @@ def generate_pdf_bytes(analysis: dict, meta: dict) -> bytes:
 </html>"""
 
     from weasyprint import HTML  # lazy import — avoids failure when weasyprint is absent at module load
-    return HTML(string=html).write_pdf()
+    return HTML(string=page_html).write_pdf()
