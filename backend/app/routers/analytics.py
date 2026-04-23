@@ -83,11 +83,10 @@ async def get_analytics(
     pending_reviews = pending_result.scalar() or 0
 
     responded_result = await db.execute(
-        select(func.count(Response.id)).where(
+        select(func.count(func.distinct(Response.review_id))).where(
             Response.review_id.in_(
                 select(Review.id).where(Review.location_id.in_(location_ids))
-            ),
-            Response.published_at.isnot(None),
+            )
         )
     )
     responded_count = responded_result.scalar() or 0
@@ -311,17 +310,14 @@ async def _build_report(
             total_q = total_q.where(Review.location_id == location_id)
         total_all = (await db.execute(total_q)).scalar() or 0
 
-        resp_q = (
-            select(func.count(Response.id))
-            .where(
-                Response.review_id.in_(
-                    select(Review.id).where(Review.location_id.in_(all_loc_ids))
-                ),
-                Response.published_at.isnot(None),
-            )
+        inner_reviews_q = select(Review.id).where(Review.location_id.in_(all_loc_ids))
+        if location_id:
+            inner_reviews_q = inner_reviews_q.where(Review.location_id == location_id)
+        resp_q = select(func.count(func.distinct(Response.review_id))).where(
+            Response.review_id.in_(inner_reviews_q)
         )
         responded = (await db.execute(resp_q)).scalar() or 0
-        response_rate = round(responded / total_all * 100) if total_all > 0 else 0
+        response_rate = round(responded / total_all * 100, 1) if total_all > 0 else 0.0
 
     loc_name = ""
     if location_id:

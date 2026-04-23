@@ -148,10 +148,10 @@ function SkeletonCard({ h = "h-24" }: { h?: string }) {
   return <div className={`bg-[#111118] border border-[#2A2A3E] rounded-xl ${h} animate-pulse`} />;
 }
 
-function KpiBox({ label, value }: { label: string; value: React.ReactNode }) {
+function KpiBox({ label, value, valueColor }: { label: string; value: React.ReactNode; valueColor?: string }) {
   return (
     <div className="bg-[#111118] border border-[#2A2A3E] rounded-xl p-4 text-center">
-      <p className="text-2xl font-bold text-white">{value}</p>
+      <p className={`text-2xl font-bold ${valueColor ?? "text-white"}`}>{value}</p>
       <p className="text-[11px] text-slate-500 uppercase tracking-wider mt-1">{label}</p>
     </div>
   );
@@ -266,7 +266,17 @@ function ReportView({ analysis, meta }: { analysis: Analysis; meta: Meta }) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <KpiBox label="Reviews" value={meta.total_reviews} />
         <KpiBox label="Avg Rating" value={`${analysis.avg_rating.toFixed(1)}★`} />
-        <KpiBox label="Response Rate" value={`${meta.response_rate}%`} />
+        <KpiBox
+          label="Response Rate"
+          value={`${meta.response_rate.toFixed(1)}%`}
+          valueColor={
+            meta.response_rate >= 30
+              ? "text-emerald-400"
+              : meta.response_rate > 0
+              ? "text-amber-400"
+              : "text-red-400"
+          }
+        />
         <KpiBox label="NPS Estimate" value={npsDisplay} />
       </div>
 

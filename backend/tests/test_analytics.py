@@ -19,6 +19,7 @@ from app.database import get_db
 from app.main import app
 from app.models.analytics_cache import AnalyticsCache
 from app.models.location import Location
+from app.models.response import Response
 from app.models.review import Review
 from app.models.subscription import Subscription
 from app.models.user import User
@@ -624,3 +625,72 @@ async def test_preview_period_week_window(
     assert len(call_reviews) == 1
     data = json.loads(response.body)
     assert "week" in data["meta"]["period_label"].lower() or "–" in data["meta"]["period_label"]
+
+
+# ── PART E: response_rate counts any response, not just published ─────────────
+
+async def test_response_rate_counts_generated_responses(
+    db_session: AsyncSession,
+    test_user: User,
+    pro_subscription: Subscription,
+    location: Location,
+):
+    """10 reviews, 4 with generated (unpublished) responses → response_rate = 40.0%."""
+    from app.routers.analytics import get_analytics
+
+    reviews = []
+    for _ in range(10):
+        r = await make_review(db_session, location.id, rating=4)
+        reviews.append(r)
+
+    # Add a response (no published_at) to 4 of the 10 reviews
+    for r in reviews[:4]:
+        db_session.add(Response(
+            review_id=r.id,
+            ai_draft="Generated response text",
+            published_at=None,
+        ))
+    await db_session.flush()
+
+    result = await get_analytics(current_user=test_user, db=db_session)
+
+    assert result["total_reviews"] == 10
+    assert result["response_rate"] == 40.0
+
+
+async def test_response_rate_ignores_multiple_responses_per_review(
+    db_session: AsyncSession,
+    test_user: User,
+    pro_subscription: Subscription,
+    location: Location,
+):
+    """1 review with 3 responses → response_rate = 100.0%, not 300%."""
+    from app.routers.analytics import get_analytics
+
+    review = await make_review(db_session, location.id, rating=5)
+    for _ in range(3):
+        db_session.add(Response(review_id=review.id, ai_draft="Draft"))
+    await db_session.flush()
+
+    result = await get_analytics(current_user=test_user, db=db_session)
+
+    assert result["total_reviews"] == 1
+    assert result["response_rate"] == 100.0
+
+
+async def test_response_rate_zero_when_no_responses(
+    db_session: AsyncSession,
+    test_user: User,
+    pro_subscription: Subscription,
+    location: Location,
+):
+    """Reviews with no responses → response_rate = 0.0."""
+    from app.routers.analytics import get_analytics
+
+    for _ in range(5):
+        await make_review(db_session, location.id, rating=3)
+
+    result = await get_analytics(current_user=test_user, db=db_session)
+
+    assert result["total_reviews"] == 5
+    assert result["response_rate"] == 0.0

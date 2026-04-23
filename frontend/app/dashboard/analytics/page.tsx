@@ -25,11 +25,11 @@ function SkeletonCard() {
   );
 }
 
-function KpiCard({ label, value }: { label: string; value: React.ReactNode }) {
+function KpiCard({ label, value, valueColor }: { label: string; value: React.ReactNode; valueColor?: string }) {
   return (
     <div className="bg-[#111118] border border-[#2A2A3E] rounded-xl p-5 space-y-1">
       <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">{label}</p>
-      <p className="text-2xl font-bold text-white">{value}</p>
+      <p className={`text-2xl font-bold ${valueColor ?? "text-white"}`}>{value}</p>
     </div>
   );
 }
@@ -126,7 +126,17 @@ export default function AnalyticsPage() {
               : "—"
           }
         />
-        <KpiCard label="Response Rate" value={`${data.response_rate}%`} />
+        <KpiCard
+          label="Response Rate"
+          value={`${data.response_rate.toFixed(1)}%`}
+          valueColor={
+            data.response_rate >= 30
+              ? "text-emerald-400"
+              : data.response_rate > 0
+              ? "text-amber-400"
+              : "text-red-400"
+          }
+        />
         <KpiCard label="Pending Reviews" value={data.pending_reviews} />
       </div>
 
