@@ -164,7 +164,7 @@ async def test_telegram(current_user: User = Depends(get_current_user)):
 async def seed_mock(db: AsyncSession = Depends(get_db)):
     """Seed mock data for development/testing. Only available in development environment."""
     from app.config import settings
-    if settings.ENVIRONMENT != "development":
+    if settings.ENVIRONMENT not in ("development", "test"):
         raise HTTPException(status_code=403, detail="Only available in development")
 
     from app.scripts.seed_mock_data import seed_mock_data

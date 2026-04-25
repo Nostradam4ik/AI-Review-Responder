@@ -151,7 +151,7 @@ async def callback(
 async def mock_login(db: AsyncSession = Depends(get_db)):
     """Return a JWT for test@test.com — development only."""
     from app.config import settings
-    if settings.ENVIRONMENT != "development":
+    if settings.ENVIRONMENT not in ("development", "test"):
         raise HTTPException(status_code=403, detail="Only available in development")
 
     result = await db.execute(select(User).where(User.email == "test@test.com"))

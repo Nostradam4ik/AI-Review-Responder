@@ -37,6 +37,10 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_settings(self) -> "Settings":
+        if not self.ENVIRONMENT:
+            raise ValueError(
+                "ENVIRONMENT must be set explicitly in .env — use 'development' or 'production'"
+            )
         if self.ENVIRONMENT == "production" and not self.TOKEN_ENCRYPTION_KEY:
             raise ValueError(
                 "TOKEN_ENCRYPTION_KEY is required in production. "
