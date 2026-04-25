@@ -2,7 +2,7 @@ fastapi==0.115.6
 uvicorn[standard]==0.34.0
 sqlalchemy[asyncio]>=2.0.40
 alembic>=1.14.1
-psycopg[binary]==3.2.13
+psycopg[binary]==3.3.3
 pydantic-settings==2.7.1
 groq==0.15.0
 python-jose[cryptography]==3.3.0
