@@ -407,8 +407,8 @@ async def telegram_webhook(
     We use the payload to link the Telegram chat_id to the user account.
     """
     expected_secret = settings.TELEGRAM_WEBHOOK_SECRET
-    if expected_secret:
-        if not x_telegram_bot_api_secret_token or not hmac.compare_digest(
+    if settings.TELEGRAM_BOT_TOKEN:
+        if not x_telegram_bot_api_secret_token or not expected_secret or not hmac.compare_digest(
             x_telegram_bot_api_secret_token, expected_secret
         ):
             raise HTTPException(status_code=401, detail="Invalid webhook secret")

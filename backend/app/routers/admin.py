@@ -241,7 +241,7 @@ async def list_users(
             "subscription_end": subscription_end,
             "ai_responses_limit": sub.responses_limit_override if sub else None,
             "created_at": u.created_at.isoformat(),
-            "last_seen_at": None,
+            "last_login_at": u.last_login_at.isoformat() if u.last_login_at else None,
             "locations_count": row.locations_count or 0,
             "reviews_count": row.reviews_count or 0,
             "responses_count": row.responses_count or 0,

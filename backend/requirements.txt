@@ -14,9 +14,7 @@ stripe==7.12.0
 bcrypt==4.2.1
 resend==2.23.0
 cryptography>=42.0.0
-freezegun>=1.5.0
 slowapi>=0.1.9
 sentry-sdk[fastapi]>=2.0.0
-openpyxl>=3.1.0
 weasyprint>=62.0
 redis>=5.0.0

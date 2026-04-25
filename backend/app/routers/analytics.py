@@ -1,9 +1,10 @@
 import asyncio
+import logging
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query, Response as FastAPIResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, Response as FastAPIResponse
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +17,7 @@ from app.models.response import Response
 from app.models.review import Review
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
+logger = logging.getLogger(__name__)
 
 
 @router.get("", dependencies=[Depends(require_plan_feature("analytics"))])
@@ -274,17 +276,27 @@ async def _build_report(
                 location_name = f"{len(locations)} locations"
 
             groq_client = AsyncGroq(api_key=settings.GROQ_API_KEY)
-            analysis = await generate_intelligence_report(
-                reviews=reviews,
-                period_label=_period_label(period),
-                location_name=location_name,
-                previous_period_reviews=prev_reviews,
-                groq_client=groq_client,
-            )
+            try:
+                analysis = await generate_intelligence_report(
+                    reviews=reviews,
+                    period_label=_period_label(period),
+                    location_name=location_name,
+                    previous_period_reviews=prev_reviews,
+                    groq_client=groq_client,
+                )
+            except Exception as e:
+                await db.rollback()
+                logger.error("Failed to generate intelligence report: %s", e)
+                raise HTTPException(status_code=503, detail="Failed to generate report. Please try again.")
 
         # 3. Save with was_cache_hit=False (real LLM call)
-        await _save_cached_report(db, current_user.id, location_id, period, analysis, was_cache_hit=False)
-        await db.commit()
+        try:
+            await _save_cached_report(db, current_user.id, location_id, period, analysis, was_cache_hit=False)
+            await db.commit()
+        except Exception as e:
+            await db.rollback()
+            logger.error("Failed to save analytics cache: %s", e)
+            raise HTTPException(status_code=503, detail="Failed to generate report. Please try again.")
 
     # Build meta
     loc_result2 = await db.execute(

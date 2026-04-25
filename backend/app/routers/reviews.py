@@ -83,6 +83,17 @@ async def seed_demo_reviews(
     """Seed demo reviews for the current user to explore the product."""
     from datetime import datetime, timezone, timedelta
 
+    # Skip if the user already has real GMB locations connected
+    real_loc_result = await db.execute(
+        select(Location).where(
+            Location.user_id == current_user.id,
+            Location.is_active == True,  # noqa: E712
+            ~Location.gmb_location_id.like(f"demo_%"),
+        )
+    )
+    if real_loc_result.scalar_one_or_none() is not None:
+        return {"created": 0, "message": "Real locations already connected"}
+
     # Get or create a demo location for this user
     loc_result = await db.execute(
         select(Location).where(

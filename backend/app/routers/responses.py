@@ -34,6 +34,8 @@ RESPONSE_RATE_LIMITS: dict[str, tuple[int, int]] = {
 # For multi-worker prod deployments, replace with Redis-backed counter.
 # TODO: migrate to redis-py with INCR + EXPIRE pattern.
 # Current workaround: docker-compose.prod.yml uses --workers 1 for the backend.
+# Stale entries (users who stopped making requests) are evicted by the
+# cleanup_rate_windows scheduler job in app/tasks/scheduler.py (every 10 min).
 _rate_windows: dict[str, list[float]] = defaultdict(list)
 
 
@@ -89,7 +91,7 @@ async def generate_response(
     _check_sliding_window(str(current_user.id), max_calls, window)
 
     await _get_review_with_auth(body.review_id, current_user, db)
-    await check_usage_limit(current_user, "ai_generate", db)
+    sub = await check_usage_limit(current_user, "ai_generate", db)
 
     tone = body.tone or current_user.tone_preference or "warm"
     extra = current_user.response_instructions or ""
@@ -100,14 +102,14 @@ async def generate_response(
         import logging as _logging
         _logger = _logging.getLogger(__name__)
         try:
-            await check_usage_limit(current_user, "ai_publish", db)
+            await check_usage_limit(current_user, "ai_publish", db, sub=sub)
             review = await db.get(Review, body.review_id)
             location = await db.get(Location, review.location_id)
             gmb = await get_gmb_service(current_user, db)
             published = await gmb.publish_response(
                 gmb_location_id=location.gmb_location_id,
                 review_id=review.gmb_review_id,
-                response_text=response.ai_draft,
+                response_text=response.final_text or response.ai_draft,
             )
             if published:
                 response.published_at = datetime.now(timezone.utc)

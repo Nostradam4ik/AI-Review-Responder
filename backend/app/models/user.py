@@ -44,6 +44,7 @@ class User(Base):
     # Admin / account state
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     locations: Mapped[list["Location"]] = relationship("Location", back_populates="user", cascade="all, delete-orphan")
     subscription: Mapped["Subscription | None"] = relationship("Subscription", back_populates="user", uselist=False)

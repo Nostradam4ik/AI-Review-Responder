@@ -47,6 +47,11 @@ class Settings(BaseSettings):
             raise ValueError("TOKEN_ENCRYPTION_KEY must be at least 32 characters if set")
         if self.ENVIRONMENT == "production" and "*" in self.ALLOWED_ORIGINS:
             raise ValueError("Wildcard CORS origin '*' is not allowed in production")
+        if self.TELEGRAM_BOT_TOKEN and not self.TELEGRAM_WEBHOOK_SECRET:
+            raise ValueError(
+                "TELEGRAM_WEBHOOK_SECRET is required when TELEGRAM_BOT_TOKEN is set. "
+                "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+            )
         return self
 
     # Stripe

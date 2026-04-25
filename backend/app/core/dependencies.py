@@ -36,6 +36,7 @@ async def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Account deactivated")
+    user.last_login_at = datetime.now(timezone.utc)
     return user
 
 

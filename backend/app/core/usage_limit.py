@@ -33,16 +33,23 @@ async def _count_usage_this_month(user_id, action_type: str, db: AsyncSession) -
     return result.scalar() or 0
 
 
-async def check_usage_limit(user: User, action_type: str, db: AsyncSession) -> None:
+async def check_usage_limit(
+    user: User,
+    action_type: str,
+    db: AsyncSession,
+    sub: Subscription | None = None,
+) -> Subscription | None:
     """
     Verify the user is allowed to perform action_type.
     Raises HTTPException(402/403/429) if not allowed.
-    Logs the usage if allowed.
+    Logs the usage if allowed. Returns the subscription so callers can
+    pass it to a subsequent check_usage_limit call and avoid a second DB query.
 
     During active trial: all features are unlocked, no response limits.
     After trial expires OR on paid plan: enforce plan limits and features.
     """
-    sub = await _get_subscription(user, db)
+    if sub is None:
+        sub = await _get_subscription(user, db)
 
     # No subscription → needs upgrade
     if sub is None:
@@ -70,7 +77,7 @@ async def check_usage_limit(user: User, action_type: str, db: AsyncSession) -> N
     # Active trial → ALL features unlocked, no usage limits
     # ai_service.py already writes the UsageLog for ai_generate; skip double-logging.
     if sub.status == "trialing":
-        return
+        return sub
 
     # Manually set expiry on active subscription
     now = datetime.now(timezone.utc)
@@ -85,7 +92,7 @@ async def check_usage_limit(user: User, action_type: str, db: AsyncSession) -> N
     plan = plan_result.scalar_one_or_none()
 
     if plan is None:
-        return
+        return sub
 
     # Monthly response limit: admin override takes precedence over plan default.
     # None = unlimited; -1 override = unlimited; 0 plan default = unlimited.
@@ -136,6 +143,7 @@ async def check_usage_limit(user: User, action_type: str, db: AsyncSession) -> N
     )
     db.add(log)
     await db.flush()
+    return sub
 
 
 async def get_user_plan_features(user: User, db: AsyncSession) -> dict:

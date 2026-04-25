@@ -123,6 +123,16 @@ async def check_trial_expirations() -> None:
                 )
 
 
+async def cleanup_rate_windows() -> None:
+    """Evict _rate_windows entries where all timestamps are older than the window."""
+    import time
+    from app.routers.responses import _rate_windows
+    now = time.time()
+    stale_keys = [k for k, v in list(_rate_windows.items()) if all(now - t > 120 for t in v)]
+    for k in stale_keys:
+        del _rate_windows[k]
+
+
 async def cleanup_analytics_cache() -> None:
     """Delete analytics_cache rows older than 7 days."""
     from app.models.analytics_cache import AnalyticsCache
@@ -159,8 +169,15 @@ def start_scheduler() -> None:
         id="cleanup_analytics_cache",
         replace_existing=True,
     )
+    scheduler.add_job(
+        cleanup_rate_windows,
+        trigger="interval",
+        minutes=10,
+        id="cleanup_rate_windows",
+        replace_existing=True,
+    )
     scheduler.start()
-    logger.info("APScheduler started — syncing reviews every 30 minutes, trial checks every 24 hours, analytics cache cleanup daily at 03:00 UTC")
+    logger.info("APScheduler started — syncing reviews every 30 minutes, trial checks every 24 hours, analytics cache cleanup daily at 03:00 UTC, rate window cleanup every 10 minutes")
 
 
 def stop_scheduler() -> None:
