@@ -10,6 +10,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
   backend:
     build: ./backend
     command: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -20,8 +25,10 @@ services:
     env_file: .env
     environment:
       - DATABASE_URL=postgresql+psycopg://reviewuser:reviewpass@postgres:5432/reviewdb
+      - REDIS_URL=redis://redis:6379/0
     depends_on:
       - postgres
+      - redis
 
   frontend:
     image: node:20-alpine
