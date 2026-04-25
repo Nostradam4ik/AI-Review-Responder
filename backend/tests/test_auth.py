@@ -7,7 +7,7 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import create_access_token, hash_password
+from app.core.security import create_access_token, create_refresh_token, hash_password
 from app.main import app
 from app.models.user import User
 
@@ -289,3 +289,84 @@ async def test_login_redirects_to_google():
     location = resp.headers["location"]
     assert "accounts.google.com/o/oauth2/v2/auth" in location
     assert "business.manage" in location
+
+
+# ── Refresh token rotation / JTI ─────────────────────────────────────────────
+
+async def test_login_saves_refresh_token_jti(raw_client: AsyncClient, db_session: AsyncSession, test_user: User):
+    """POST /auth/login → refresh_token_jti is set on the user in the session."""
+    resp = await raw_client.post(
+        "/auth/login",
+        json={"email": test_user.email, "password": "password123"},
+    )
+    assert resp.status_code == 200
+
+    # The endpoint uses the same db_session (via override) and modifies the
+    # same Python object via the identity map — check in-memory directly.
+    assert test_user.refresh_token_jti is not None
+    assert len(test_user.refresh_token_jti) > 10
+
+
+async def test_refresh_with_valid_jti(raw_client: AsyncClient, db_session: AsyncSession, test_user: User):
+    """POST /auth/refresh with valid jti → returns new access token and rotates refresh cookie."""
+    from app.core.security import decode_access_token
+
+    refresh = create_refresh_token(str(test_user.id))
+    test_user.refresh_token_jti = decode_access_token(refresh)["jti"]
+    await db_session.flush()
+
+    resp = await raw_client.post(
+        "/auth/refresh",
+        cookies={"refresh_token": refresh},
+    )
+
+    assert resp.status_code == 200
+    assert "access_token" in resp.json()
+    assert "refresh_token" in resp.cookies  # rotated
+
+
+async def test_refresh_with_wrong_jti_returns_401(raw_client: AsyncClient, db_session: AsyncSession, test_user: User):
+    """POST /auth/refresh with a jti that doesn't match DB → 401 revoked."""
+    refresh = create_refresh_token(str(test_user.id))
+    test_user.refresh_token_jti = "some-other-jti-that-was-rotated-away"
+    await db_session.flush()
+
+    resp = await raw_client.post(
+        "/auth/refresh",
+        cookies={"refresh_token": refresh},
+    )
+
+    assert resp.status_code == 401
+    assert "revoked" in resp.json()["detail"]
+
+
+async def test_refresh_after_logout_is_rejected(raw_client: AsyncClient, db_session: AsyncSession, test_user: User):
+    """Logout clears jti → subsequent refresh with old token is rejected."""
+    from app.core.security import decode_access_token
+
+    refresh = create_refresh_token(str(test_user.id))
+    test_user.refresh_token_jti = decode_access_token(refresh)["jti"]
+    await db_session.flush()
+
+    # Logout revokes the jti
+    logout_resp = await raw_client.post(
+        "/auth/logout",
+        cookies={"refresh_token": refresh},
+    )
+    assert logout_resp.status_code == 200
+
+    assert test_user.refresh_token_jti is None
+
+    # Old refresh token is now rejected
+    resp = await raw_client.post(
+        "/auth/refresh",
+        cookies={"refresh_token": refresh},
+    )
+    assert resp.status_code == 401
+
+
+async def test_logout_without_cookie_still_returns_200(raw_client: AsyncClient):
+    """POST /auth/logout with no cookie → 200 (best-effort)."""
+    resp = await raw_client.post("/auth/logout")
+    assert resp.status_code == 200
+    assert resp.json()["logged_out"] is True

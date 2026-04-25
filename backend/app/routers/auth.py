@@ -137,6 +137,7 @@ async def callback(
 
     jwt_token = create_access_token({"sub": str(user.id)})
     refresh = create_refresh_token(str(user.id))
+    user.refresh_token_jti = decode_access_token(refresh)["jti"]
     response = RedirectResponse(f"{settings.FRONTEND_URL}/auth/callback#token={jwt_token}")
     response.set_cookie(
         "refresh_token", refresh,
@@ -245,6 +246,7 @@ async def login_email(request: Request, body: LoginRequest, db: AsyncSession = D
 
     jwt_token = create_access_token({"sub": str(user.id)})
     refresh = create_refresh_token(str(user.id))
+    user.refresh_token_jti = decode_access_token(refresh)["jti"]
     from fastapi.responses import JSONResponse
     response = JSONResponse({
         "access_token": jwt_token,
@@ -349,14 +351,41 @@ async def refresh_token(request: Request, db: AsyncSession = Depends(get_db)):
     if not user or not user.is_active:
         raise HTTPException(401, "User not found")
 
+    if payload.get("jti") != user.refresh_token_jti:
+        raise HTTPException(401, "Token has been revoked")
+
     new_access_token = create_access_token({"sub": user_id})
-    return {"access_token": new_access_token, "token_type": "bearer"}
+    new_refresh = create_refresh_token(user_id)
+    user.refresh_token_jti = decode_access_token(new_refresh)["jti"]
+
+    from fastapi.responses import JSONResponse
+    response = JSONResponse({"access_token": new_access_token, "token_type": "bearer"})
+    response.set_cookie(
+        "refresh_token", new_refresh,
+        httponly=True, secure=True, samesite="lax",
+        max_age=60 * 60 * 24 * 30,
+    )
+    return response
 
 
 @router.post("/logout")
-async def logout():
-    """Clear the httpOnly refresh token cookie."""
+async def logout(request: Request, db: AsyncSession = Depends(get_db)):
+    """Clear the httpOnly refresh token cookie and revoke the refresh token JTI."""
     from fastapi.responses import JSONResponse
+    from jose import JWTError
+
+    token = request.cookies.get("refresh_token")
+    if token:
+        try:
+            payload = decode_access_token(token)
+            user_id = payload.get("sub")
+            if user_id:
+                user = await db.get(User, uuid.UUID(user_id))
+                if user:
+                    user.refresh_token_jti = None
+        except (JWTError, ValueError):
+            pass  # best-effort: always clear the cookie even if token is invalid
+
     response = JSONResponse({"logged_out": True})
     response.delete_cookie("refresh_token", httponly=True, secure=True, samesite="lax")
     return response
